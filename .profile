@@ -22,14 +22,12 @@ for path_element in $dht/bin /usr/local/go/bin $HOME/go/bin $EC2_HOME/bin $HOME/
     [[ -d $path_element ]] && PATH+=":${path_element}"
 done
 
-#echo cleaning PATH var
-echo $PATH
+# a bit of a mess - can be done so it doesn't foul path order
 PATH=$(echo $PATH | perl -ne 'chomp;
     map {$f{$_}++} split /:/;
     print join(":", keys %f) ."\n";'
  )
 export PATH
-echo $PATH
 
 export jb=jb.run.pivotal.io
 export staging=jb.staging.cf-app.com
@@ -637,6 +635,11 @@ function migrate_basic_env() {
 
 function new_env() {
   echo "do setup for a new env"
-
+  cd ; ln -svf ~/basic_env/bin
+  cd ; ln -svf ~/basic_env/.profile .profile
+  cd ; ln -svf ~/basic_env/.screenrc .screenrc
+  cd ; ln -svf ~/basic_env/.tmux.conf .tmux.conf
+  cd bin ; ./nl2.pl --egg| xargs -I {} bash -c '{}'
 }
+
 
