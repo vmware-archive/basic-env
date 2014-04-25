@@ -635,10 +635,10 @@ function migrate_basic_env() {
 
 function new_env() {
   echo "do setup for a new env"
-  cd ; ln -svf ~/basic_env/bin
-  cd ; ln -svf ~/basic_env/.profile .profile
-  cd ; ln -svf ~/basic_env/.screenrc .screenrc
-  cd ; ln -svf ~/basic_env/.tmux.conf .tmux.conf
+  cd ; ln -svf ~/basic-env/bin bin
+  cd ; ln -svf ~/basic-env/.profile .profile
+  cd ; ln -svf ~/basic-env/.screenrc .screenrc
+  cd ; ln -svf ~/basic-env/.tmux.conf .tmux.conf
   cd bin ; ./nl2.pl --egg| xargs -I {} bash -c '{}'
 }
 
