@@ -1,0 +1,139 @@
+#!/usr/bin/perl
+# Author: Tony Hansmann
+#
+# use diagnostics;
+use strict;
+# use Carp;
+# use POSIX;
+# use Data::Dumper;
+use Getopt::Long qw(:config bundling) ;
+
+my $HELP;
+my $WRAP;
+my $COUNT_START;
+GetOptions(
+      'help|h|?'        => \$HELP,
+      'wrap|w=i'        => \$WRAP,
+      'first-digit|d=i' => \$COUNT_START,
+     ) ;
+
+if ($HELP) {
+    help();
+    exit;
+}
+
+defined $COUNT_START || do {$COUNT_START = 1;};
+
+if (@ARGV) {
+    my $to_increment = shift @ARGV;
+    if (defined $WRAP) {
+        if ($to_increment >=  $WRAP) {
+            print  $COUNT_START,  "\n";
+            exit;
+        }
+    }
+
+    chomp $to_increment;
+    print ++$to_increment, "\n";
+}
+else {
+   print "$COUNT_START\n" ;
+   
+}
+
+sub help {
+    print q{
+Easy way increment vars (or create them as 0 (zero) for commandline or shell scripts.
+    Usage: ++ || ++ [int|word]
+       returns the argument after applying perl's '++'
+
+Examples:
+    ++.pl  
+     0
+    ++.pl 0
+      1
+    ++.pl 1
+      2
+    ++.pl a
+      b
+    ++.pl b
+      c
+    ++.pl foo
+      fop
+    ++.pl bar
+      bas
+    ++.pl foobar1
+      foobar2
+    
+    unset j
+    $ echo "[$j]"
+       []
+    $ j=$(++ $j)
+    $ echo "[$j]"
+       [0]
+    $ j=$(++ $j)
+    $ echo "[$j]"
+       [1]
+
+   Allows for a more natural bash/sh/ksh usage of:
+      j=$(++ $j)
+
+
+};
+
+};
+
+# $Header: /home/thansmann/bin/RCS/++,v 1.2 2011/11/30 20:24:30 thansmann Exp thansmann $
+# $Author: thansmann $
+# $Date: 2011/11/30 20:24:30 $
+# 
+# $Log: ++,v $
+# Revision 1.2  2011/11/30 20:24:30  thansmann
+# -checking in before doing: auto_ci auto_ci auto-checkin
+#
+# Revision 1.1  2011/11/30 20:23:42  thansmann
+# Initial revision
+# $cc$
+
+
+
+
+# =pod
+
+# =head1 NAME
+
+# =head1 SYNOPSIS 
+
+# =head1 DESCRIPTION
+
+# =head1 OPTIONS  
+
+# =head1 RETURN VALUE
+
+# =head1 ERRORS
+
+# =head1 EXAMPLES  
+
+# =head1 ENVIRONMENT
+
+# =head1 FILES     
+
+# =head1 SEE ALSO  
+
+# =head1 NOTES     
+
+# =head1 CAVEATS   
+
+# =head1 DIAGNOSTICS
+
+# =head1 BUGS
+
+# =head1 RESTRICTIONS
+
+# =head1 AUTHOR 
+
+# =head1 HISTORY 
+
+# =cut
+
+

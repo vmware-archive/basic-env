@@ -1,0 +1,374 @@
+#!/usr/bin/perl
+# Author: Tony Hansmann
+#
+# old v5.6.0 on the isilons doesnt understand Getops::Long args or
+# List::Util; cutting it down so it'll work
+# -Tony Mon Nov  2 17:07:17 2009
+
+#use List::Util qw(first);
+#use Getopt::Long qw(:config bundling) ;
+use Carp ;
+
+use Getopt::Long ;
+my $SPACE = ' ' ;
+
+GetOptions(
+    'field|f=s'            => \@field,
+    'd=s'                  => \$delimiter,
+    'all|a'                => \$all_fields,
+    'output-delimiter|o=s' => \$output_delimiter,
+    'trim|t=i'             => \$trim_head,
+    'S'                    => \$skip_non_delimited_lines,
+    'limit|l=i'            => \$LIMIT,
+    'invert|i'             => \$INVERT,
+    'help|h'               => \$help,
+) ;
+
+
+if ($help) {
+    print qx{pod2text $0};
+    exit 1;
+}
+
+# if there's a non-escaped dot in the delimiter and it's not quoted, quote it
+# for user.
+# if ($delimiter =~ m{ \. }xms && not $delimiter =~ m{  \\ \.  }xms ) {
+#    $delimiter = quotemeta "$delimiter";
+# }
+
+# Fix for block above - theres a whole set of delimiters that need to be quoted
+# perl knows them all -T Tue Dec 13 07:30:12 2011
+$delimiter = quotemeta $delimiter;
+
+
+## enable classic cut behavior or leave it just spaces?
+# Default output is one space char
+# -Tony
+#$delimiter ? $output_delimiter = $delimiter : $delimiter = $SPACE;
+
+$output_delimiter ||= $SPACE;
+
+# default delimiter is any number of space chars
+$delimiter ||= qr{\s+};
+
+#
+$trim_head ||= 0;
+
+# trick i stole from Johnny's jsh
+# needed in case user does -f 1 -f 2 -f 3
+# -T Sun Aug 16 18:20:53 2009
+@field  = split( /,/, join( ',', @field ) ) ;
+@excise_field  = split( /,/, join( ',', @excise_field ) ) ;
+
+# make ranges work, keep everything in order
+my @expanded_fields =
+    map {
+    # if theres 'digits-digits'
+    if (m{\d+ - \d+ }xms) {
+        # replace the dash with dotdot
+        s{-}{\.\.}xms;
+        # do a regular eval to expand the xx..yy 
+        eval ($_);
+    }
+    # if no dash, just return the number.
+    else {
+       $_;
+    }
+
+} @field;
+
+# stay with the shell paradigm, first col is 1, not 0. If there is a
+# zero assume user wants to be zero based and leave the fields as they
+# were passed on the commandline -T Wed Aug 24 16:12:32 2011
+if (not grep {$_ == 0} @expanded_fields  ) {
+    map {$_ > 0 and $_--} @expanded_fields;
+}
+else {
+   carp "INFO: There is a zero on field arg, switching to zero based columns";
+}
+
+
+if (not $all_fields) {
+    push @expanded_fields, -1 unless @expanded_fields;
+    
+}
+
+while (<>) {
+    my @my_fields = @expanded_fields;
+    next if $trim_head >= $.;
+    chomp;
+    # trim leading whitespace
+    s{\A \s+}{}xms;
+
+    # skip lines without a delimiter char
+    if ( ! m{$delimiter}xms && $skip_non_delimited_lines ){
+        next;
+    }
+    # split line on delimter char
+    @cut_up_line = split $delimiter;
+    
+    if ($all_fields) {
+        print join $output_delimiter, @cut_up_line;
+        #
+        @my_fields and print $output_delimiter;
+    }
+
+    if ($INVERT) {
+        # find out how many fields are in the line
+        @inverse = (0 .. $#cut_up_line);
+        # set the fields (which will be used as indexes) to not print to undef
+        @inverse[@my_fields] = undef;
+        # grep out the defined vaules
+        @my_fields = grep  {defined } @inverse;
+
+    }
+
+    
+    print join $output_delimiter, @cut_up_line[@my_fields];
+    print "\n";
+}
+
+
+sub expand_fields {
+    my $arr_ref = shift;
+    return  map {
+        # if theres 'digits-digits'
+        if (m{\d+ - \d+ }xms) {
+            # replace the dash with dotdot
+            s{-}{\.\.}xms;
+            # do a regular eval to expand the xx..yy 
+            eval ($_);
+        }
+        # if no dash, just return the number.
+        else {
+            $_;
+        }
+    } @$arr_ref;
+}
+
+
+
+__END__
+
+=head1 NAME
+
+pcut - An improved, option compatable replacement for 'cut'. With no flags, it cuts the
+last space-delimited field in a line. With the '-S' options it will skip lines with no delimiter. The '-t {n}' option will trim {n} lines off the top before cutting. Using '-a' and '-o {delimiter}' together will change the delimiters.
+
+The ispiration for writing pcut came from a wanting to to find a faster way to type "awk '{print $NF}'" and to fix the pathalogical way cut deals with whitespace between fields.
+
+Differences from /usr/bin/cut:
+
+-c is not supported. /usr/bin/cut -c x,y works pretty well, and is not implemented here.
+
+
+Fields are not reordered and delimiters are not retained:
+
+=over
+
+echo one.two.three|/usr/bin/cut -f 1,2 -d '.'
+
+=over
+
+one.two # delimiter is retained
+
+=back
+
+echo one.two.three|/usr/bin/cut -f 2,1  -d '.'
+
+=over
+
+one.two # and the fields are unhelpfully put in order
+
+=back
+
+echo one.two.three|pcut  -f 2,1  -d '.'
+
+=over
+
+two one # commandline order is retained, delimiter is removed, but see next example.
+
+=back
+
+=back
+
+=over
+
+echo one.two.three|pcut -f 2,1 -d '.' -o '.'
+
+=over
+
+two.one
+
+=back
+
+=back
+
+=head1 VERSION
+
+pcut 1.0.0
+
+
+=head1 USAGE
+
+pcut [ [-i] [ -f [x,y,z,-n....]] [ -d "{perl regex}" ] [ -a ] [ -o "{string}"  ] [ -t {n} ]
+
+=head1 ARGUMENTS
+
+=over
+
+=item
+
+-f {n} : Field or fields to cut. Works flexibly, will repeat and rearrange fields, supports negitive indexing (ie -1 is the last field, -2 second to last, etc).
+
+
+=over
+
+=item Examples
+
+'pcut {filename}' # cuts the last field.
+
+'pcut -f {filename}' # -f with no arguement cuts the first field in the line.
+
+'pcut -f 1,-1 {filename}' # cuts the first and last fields in the line.
+
+'pcut -f 2,-1,1 {filename}' # rearranges the fields
+
+
+=back
+
+=over
+
+=item
+
+-i || --invert : Inverts the fields to cut giving you everything except the fields specified by '-f'.
+
+=over
+
+=item Examples
+
+'pcut -i {filename}' # everything but the last field.
+
+'pcut -i -f {filename}' # everything but the first field.
+
+'pcut -i -f 1,-1 {filename}' # everything but the first and last fields.
+
+echo 'one two three four five six' | pcut -i
+
+=over
+
+one two three four five
+
+=back
+
+echo 'one two three four five six' | pcut -i -f 1
+
+=over
+
+two three four five six
+
+=back
+
+echo 'one two three four five six' | pcut -i -f 2-5
+
+=over
+
+one six
+
+=back
+
+echo 'one two three four five six' | pcut -i -f 1,-1,-2
+
+=over
+
+two three four
+
+=back 
+
+=back
+
+=item
+
+-d {perl regex} :  Specify a delimiter. Can be a string or perl regexp. It does not take regexp modifing options like 'xmsgi'. Regexps need to be quoted as they would in perl.
+
+-d "{perl regexp} || {string}"
+
+=over
+
+=item Examples
+
+'pcut {filename}' default delimiter is any number of space or tab chars.
+
+'pcut -d ':' {filename}' with no arguement cuts the first field in the line use ':' as the delimiter.
+
+'pcut -d '\d{3}' {filename}' # cuts on any three digits in a row, print the last field
+
+'pcut -d ':' 2,-1,1 {filename}' # rearranges the fields
+
+'pcut -d ':' -a -o '||' {filename}' # replace delimiter ':' with '||', print all fields.
+
+
+=back
+
+
+=item
+
+-o "{string}" : Output between cut fields.
+
+=over
+
+=item Examples
+
+'pcut -o '||' -d ':' -a  {filename}' # replace delimiter ':' with '||', print all fields.
+
+
+=back
+
+
+=item
+
+-a : Take all fields
+
+=over
+
+=item Examples
+
+'pcut -a -d ':' {filename}' # replace delimiter ':' with ' '(space), print all fields.
+
+=back
+
+=item
+
+-t {n} : Trim {n} lines from the top of the file/output
+
+=over
+
+'pcut -t {n}' Trim {n} lines from the top of the file or output before starting to cut. Useful for eliminating header lines.
+
+=over
+
+=item Examples
+
+'ps -f |pcut -t1' trims off the first line of output, cuts the last field showing the name of the user's running programs.
+
+vmstat 1 10|pcut -f 1,2,-3,-2,-1 # show useful fields from vmstat
+
+
+=back
+
+=back
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,162 @@
+#!/usr/bin/perl
+# Author: Tony Hansmann
+#
+
+
+## TODO
+# add args to the major functions:
+##  returning an existing file
+#####
+
+use Getopt::Long ;
+use Env;
+use Carp;
+use File::Spec;
+use File::Path qw(mkpath);
+
+my $FILE;
+my $DIR;
+my $TOUCH;
+my $EXISTING;
+my ($VOL, $DIRECTORY, $NAME)
+    = ($volume,$directories,$NAME) = File::Spec->splitpath( $0 );
+my @SORTED_FILE_LIST;
+my $CLEAN_UP; 
+my $DEFAULT_ENV_VAR_SET = 3;
+
+
+GetOptions(
+    'dir|d=s' => \$DIR,
+    'file|f=s' => \$FILE,
+    'touch|T' => \$TOUCH,
+    'existing|e' => \$EXISTING,
+    'var|v=s'   => \$VAR_BASE,
+    'existing|e' => \$EXISTING,
+    'cleanup' => \$CLEAN_UP,
+    ''
+);
+
+
+if ($NAME =~ m{current}xs) {
+    $EXISTING = 1;
+}
+
+# Set defaults
+# 
+$FILE ||= "foo";
+$DIR ||= "$ENV{HOME}/tmp/$FILE";
+# this sets the base variable name for tmp file
+# a VAR_BASE of 'j' will set the env var to $j, $j1..$j9
+if (not $VAR_BASE) {
+    ($VAR_BASE) =  $FILE =~ m{\A(.)}xs;
+}
+
+# a regexp to get the number from a string like '/tmp/foo/foo-87'
+my $string_then_number_regex = qr{$FILE-(\d+)}xo;
+######
+
+
+# if the dir doesnt exist well make it and touch the file and exit.
+-d $DIR || do {
+    prep_dir($DIR, $FILE);
+    exit 0
+} ;
+
+# get the file list and sort it.
+@SORTED_FILE_LIST = &get_and_sort_filelist($DIR, $FILE);
+
+
+#if ($CLEAN_UP) {
+clean_up_directory($DIR, $FILE);
+#}
+
+
+if (! $EXISTING) {
+    # find the number of the last filename
+    my ($last_file_number)
+        = $SORTED_FILE_LIST[-1] =~ m{$string_then_number_regex};
+
+    # add one to the last file number
+    $last_file_number += 1;
+    # push the new string onto the array
+    push @SORTED_FILE_LIST, ("$DIR/$FILE" . "-" . "$last_file_number");
+}
+
+my $j;
+
+for my $i (1..$DEFAULT_ENV_VAR_SET) {
+    # hack to index backwards, dont know how do this normally
+    $i = -1 * $i;
+    my $file = $SORTED_FILE_LIST[$i];
+    print "${VAR_BASE}" . "$j" . "=" . "$file; ";
+    $j++;
+}
+
+print "\n";
+
+
+##############################
+##########
+# Mon Sep  7 14:41:36 2009
+#
+sub prep_dir {
+
+    my $DIR = shift @_;
+    my  $FILE = shift @_;
+    my $file = "$DIR/${FILE}-0";
+    mkpath $DIR || croak "Unable to make dir $DIR: $!";
+    # the && is here due to shells backward return values -T Fri Aug  6 17:39:50 2010
+    qx{touch $file} && croak "Unable to touch file $file: $!";
+    print "f=$file\n";
+}
+
+
+##############################
+##########
+# Mon Sep  7 13:24:26 2009
+# Golden sort sub for use with
+#   '@SORTED_FILE_LIST = sort file_number @FILE_LIST;'
+sub file_number {
+    my ($one) = $a =~ m{$string_then_number_regex};
+    my ($two) = $b =~ m{$string_then_number_regex};
+    return  $one <=> $two;
+}
+
+
+##############################
+##########
+# Mon Sep  7 14:21:33 2009
+#
+
+sub get_and_sort_filelist {
+    my $DIR = shift @_;
+    my  $FILE = shift @_;
+
+    # could use a time sorted ls
+    my @FILE_LIST = qx/find $DIR -maxdepth 1 -type f -name "$ {FILE}-*"/;
+    chomp @FILE_LIST;
+    return sort file_number @FILE_LIST;
+}
+
+##############################
+##########
+# Mon Sep  7 14:43:25 2009
+#
+sub clean_up_directory {
+    my $DIR = shift @_;
+    my  $FILE = shift @_;
+
+    # upped the limits to get more dirs hanging around
+    my $FILES_to_LEAVE = 150;
+    my $CLEANUP_LIMIT = 250;
+    my $file_list_length = scalar @SORTED_FILE_LIST;
+    ## TODO - add a tar file counter and save off the tar file it is too big. -T Mon Jun 20 10:16:09 2011 
+    if ($CLEANUP_LIMIT <  $file_list_length ) {
+        warn "archiving older files to $DIR/${FILE}_archive.tar\n";
+        my $tar_list = join " ",
+            @SORTED_FILE_LIST[0..($file_list_length - $FILES_to_LEAVE)];
+        qx{ tar rf $DIR/${FILE}_archive.tar $tar_list & };
+        qx{ rm $tar_list & };
+    }
+
+}

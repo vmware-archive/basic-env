@@ -1,0 +1,17 @@
+#!/bin/bash
+# Author: Tony Hansmann
+#
+#hlp do the long list of the executable given on the commandline
+#Tony
+
+
+for i in $*
+do
+  __PATH=`type -p $i`
+  if [ ! -z $__PATH ]
+      then
+      ls -arlt $__PATH
+  else
+      echo "can't find a path for $1"
+  fi
+done

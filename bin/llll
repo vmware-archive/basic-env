@@ -1,0 +1,32 @@
+#!/bin/bash
+# Author: Tony Hansmann
+#
+
+
+#hlp print the machine name and full path for a file for cutting/pasting to scp commands
+#hlp usage: lll <filename>
+#hlp   example: cd /tmp; lll foobar
+#hlp   example output: /tmp/foobar # its more useful with deep dirs
+
+if [ ! -z "$*" ]
+    then
+    for i in $*
+      do
+        if [ -f $i  ]
+            then
+            if (echo $i |egrep -q "^/|\.\./")
+            then
+                echo ${USER}@$(hostname):$(\ls $i);
+            else
+                echo ${USER}@$(hostname):$(\ls $(pwd)/$i);
+            fi
+            elif $(type $i > /dev/null)
+            then
+              echo ${USER}@$(hostname):$(type -p $i);
+        fi 
+    done
+else
+    echo $(hostname):`pwd`;
+fi
+
+

@@ -1,0 +1,25 @@
+# adding to home files git repos
+[user]
+  name = thansmann
+  email = thansmann@rbcon.com
+[core]
+# suggestions from git immersion
+[alias]
+  co = checkout
+  # ci = commit - taken by git duet
+  st = status
+  br = branch
+  ls = ls-files
+  modifed = ls-files -m
+  other = ls-files -o 
+  hist = log --pretty=format:\"%h %ad | %s%d [%an]\" --graph --date=short
+  type = cat-file -t
+  dump = cat-file -p
+  lg = log --color --graph --pretty=format:'%Cred%h%Creset -%C(yellow)%d%Creset %s %Cgreen(%cr) %C(bold blue)<%an>%Creset' --abbrev-commit
+  permission-reset = "!git diff -p | grep -E '^(diff|old mode|new mode)' | sed -e 's/^old/NEW/;s/^new/old/;s/^NEW/new/' | git apply"
+  god = log --graph --oneline --decorate
+
+[color]
+  status = true
+  ui = auto
+

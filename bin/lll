@@ -1,0 +1,46 @@
+#!/bin/bash
+# Author: Tony Hansmann
+#
+# often want full path to file(s), this gets it for me
+#hlp print the full path for a file, useful for cutting/pasting
+#hlp usage: lll <filename>
+#hlp   example: cd /tmp; lll foobar
+#hlp   example output: /tmp/foobar # its more useful with deep dirs 
+# -Tony Tue Apr 27 17:55:18 PDT 2010
+
+    # if [ ! -z "$*" ]
+    #     then
+    #     for i in $*;
+    #       do
+    #         if (echo $i |egrep -q "^/|\.\./")
+    #             then
+    #             \ls $i
+    #         else
+    #             \ls $(pwd)/$i;
+    #         fi
+    #     done
+    # else
+    #     pwd;
+    # fi
+
+    if [ ! -z "$*" ]
+    then        
+    for i in $*
+      do
+        if [ -f $i  ]
+            then
+            if (echo $i |egrep -q "^/|\.\./")
+            then
+                \ls $i
+            else
+                \ls $(pwd)/$i
+            fi
+            elif $(type $i > /dev/null)
+            then
+              type -p $i
+        fi 
+    done
+else
+    pwd
+fi
+

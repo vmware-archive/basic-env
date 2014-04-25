@@ -1,0 +1,10 @@
+#!/bin/bash
+set -a
+
+THIS_USER=$(id -un)
+tty| ruby -ne 'gsub(%r{/dev/}, " kibitz -tty ") ; chomp ; puts "#{$_} #{ENV["THIS_USER"]}"'
+
+echo "'resize' says your term is: "
+resize
+
+

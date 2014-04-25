@@ -1,0 +1,196 @@
+#!/usr/bin/perl
+# Author: Tony Hansmann
+# fixup Wed Aug 17 15:53:17 2011 for a logic error 
+use Carp;
+use strict ;
+
+use Getopt::Long;
+
+my $START;
+my $END;
+
+my @a;
+my ${have_seen_start_string};
+my $jnk;
+my ($opt_s,$opt_e);
+my %opt;
+my $PASSES = 0;
+my $EXCLUSIVE_OF_LAST;
+my $EXCLUSIVE_OF_FIRST;
+#my $FLATTEN;
+
+# have to use clunky getopt to get backward compat with old, stripped
+# down perl isilon uses.
+GetOptions(
+    's|start=s' => \$START,
+    'e|end=s'   => \$END,
+    'exclusive|not-last|up-to-not-including' => \$EXCLUSIVE_OF_LAST,
+    'not-first' => \$EXCLUSIVE_OF_FIRST,
+#    'flatten' => \$FLATTEN, # good idea, but not ready to do it. -T Mon Jan  9 17:00:35 2012
+);
+
+
+
+if ( $opt{'h'}) {
+    print "Usage: $0 [ -s|--start 'String' ] [ -e|--end 'end string' ]\n ";
+    print "\t--start and --end are optional.";
+}
+
+# we dont get a start string assume we want to print from the
+# beginning of the file or stream
+if (! $START) {
+    ${have_seen_start_string} = 1;
+    # give start an md5sum out of /dev/urandom so it doesnt match again
+    $START = '87d221614f9f68704d28777710962d6c';
+}
+
+
+TOP: while (<>) {
+    # if not defined look for the start string
+    ${have_seen_start_string} ||= $_ =~ m{$START};
+
+    # if we saw the start string save lines
+    ${have_seen_start_string} && push @a, $_;
+
+    # cover the case there start and end are the same we want to make at lease
+    # one pass 
+    if ( ! $PASSES && ( ($START && $END) && ($START eq $END) ) ) {
+        $PASSES++;
+        next TOP;
+    }
+    # look for the end string, if we see it, turn off saving lines.
+    if ( $END &&  $_ =~ m{$END}) {
+        #        carp "end [$END] matches the line [$_]\n";
+
+        # was a tricky thing - i was poping the array if i matched
+        # end, but not checking if i was in have_seen_start_string -
+        # fixed here so i test both and am not poping the array
+        # willy-nilly Wed Aug 17 15:52:36 2011 -T
+        if ($EXCLUSIVE_OF_FIRST && ${have_seen_start_string} ) {
+            my $jnk = shift @a;
+        }
+        if ($EXCLUSIVE_OF_LAST && ${have_seen_start_string} ) {
+            my $jnk = pop @a;
+        }
+        ${have_seen_start_string} = 0;
+    }
+}
+
+
+
+print  @a;
+
+
+
+=pod
+
+=head1
+
+=over
+
+=item Commandline arguments
+
+
+=over
+
+=item Line matching record start
+
+-s 'plain text' || 'perl regex'
+
+=back
+
+=over
+
+=item Line matching record end
+
+-e 'plain text' || 'perl regex'
+
+=back
+
+
+=over
+
+=item Do not include first record line
+
+--not-first
+
+=back
+
+
+=over
+
+=item Do not include last record line
+
+--not-last
+
+=back
+
+
+
+=back
+
+=head1
+
+=over
+
+=item Example
+
+# a contrived example that intermixes a record type we want with other junk:
+for i in red green blue; do for j in cow hen cat; do for k in thoughtful fey skittish; do ls -l /etc | tail;  echo Animal: $j; echo Color: $i; echo Mood: $k; cal; done; done; done| print_between -s Color -e Mood
+
+
+# just the cats mood 
+for i in red green blue; do for j in cow hen cat; do for k in thoughtful fey skittish; do ls -l /etc | tail;  echo Animal: $j; echo Color: $i; echo Mood: $k; cal; done; done; done| print_between -s "Animal: cat" -e Mood
+
+
+# just the 'c' animals 
+for i in red green blue; do for j in cow hen cat; do for k in thoughtful fey skittish; do ls -l /etc | tail;  echo Animal: $j; echo Color: $i; echo Mood: $k; cal; done; done; done| print_between -s "Animal: c" -e Mood
+
+=over
+
+=item
+
+
+
+=back
+
+
+
+
+=over
+
+=item Justification
+
+It's possible to "print between" two lines with perl or sed one-liners, but it's too much to type or remember. This is a simpler to remember method with a straight-forward insterface.
+
+- print lines between two strings: start at "May 01" and end at "May 03"
+
+unset PRINT; while read i
+do
+   if $(echo $i |grep -q '2010-08-08 08:10:07')
+   then
+      echo found start ; PRINT=1 ;
+   fi
+   if $(echo $i |grep -q '2010-08-08 08:52:47')
+   then
+      echo found end ; PRINT=0 ; break
+   fi
+   if [ "$PRINT" == 1  ]
+   then
+      echo "INFO: $i"
+   fi
+done < /tmp/scratch_file
+
+## sed 
+sed -n "/08:46:43/,/09:04:48/p" /tmp/scratch_file # works well
+
+## perl
+perl  -ne 'm/08:46:43/ and  $P=1 ; m/09:04:48/ and  $P=0; $P && print' /tmp/scratch_file # works, doesnt include last line
+
+
+=back
+
+ 
+
+=cut
+
