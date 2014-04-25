@@ -18,7 +18,19 @@ export wp="$HOME/workspace/prod-aws"
 export wt="$HOME/workspace/tools"
 export th_ssh_config="$HOME/Dropbox/home/thansmann/.ssh/config"
 export dht="$HOME/Dropbox/home/thansmann"
-export PATH=$PATH:$dht/bin:/usr/local/go/bin:$HOME/go/bin:$EC2_HOME/bin
+for path_element in $dht/bin /usr/local/go/bin $HOME/go/bin $EC2_HOME/bin $HOME/bin /usr/local/bin ; do
+    [[ -d $path_element ]] && PATH+=":${path_element}"
+done
+
+#echo cleaning PATH var
+echo $PATH
+PATH=$(echo $PATH | perl -ne 'chomp;
+    map {$f{$_}++} split /:/;
+    print join(":", keys %f) ."\n";'
+ )
+export PATH
+echo $PATH
+
 export jb=jb.run.pivotal.io
 export staging=jb.staging.cf-app.com
 
