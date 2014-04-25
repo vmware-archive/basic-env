@@ -18,20 +18,15 @@ export wp="$HOME/workspace/prod-aws"
 export wt="$HOME/workspace/tools"
 export th_ssh_config="$HOME/Dropbox/home/thansmann/.ssh/config"
 export dht="$HOME/Dropbox/home/thansmann"
+
 for path_element in $dht/bin /usr/local/go/bin $HOME/go/bin $EC2_HOME/bin $HOME/bin /usr/local/bin ; do
     [[ -d $path_element ]] && PATH+=":${path_element}"
 done
 
-# a bit of a mess - can be done so it doesn't foul path order
-PATH=$(echo $PATH | perl -ne 'chomp;
-    map {$f{$_}++} split /:/;
-    print join(":", keys %f) ."\n";'
- )
-export PATH
-
 export jb=jb.run.pivotal.io
 export staging=jb.staging.cf-app.com
 
+alias att='cd ~/workspace/att_spiffable_template'
 alias gti='git'
 alias ll='ls -alrt'
 alias w="cd $HOME/workspace"
@@ -477,7 +472,7 @@ function ssl_decode_csr() {
 
 }
 
-alias bb='GEMFILE=~/workspace/bosh/Gemfile bundle exec bosh '
+#alias bb='GEMFILE=~/workspace/bosh/Gemfile bundle exec bosh '
 
 pushenv () {
     if [[ -d $dht ]] ; then
@@ -632,7 +627,6 @@ function migrate_basic_env() {
   fi
 }
 
-
 function new_env() {
   echo "do setup for a new env"
   cd ; ln -svf ~/basic-env/bin bin
@@ -640,6 +634,15 @@ function new_env() {
   cd ; ln -svf ~/basic-env/.screenrc .screenrc
   cd ; ln -svf ~/basic-env/.tmux.conf .tmux.conf
   cd bin ; ./nl2.pl --egg| xargs -I {} bash -c '{}'
+}
+
+function gc() {
+  pushd ~/workspace
+  local repo=$(echo $1| perl -pe 's/\.git$//')
+  git clone git@github.com:${repo}.git
+  echo "cd-ing into $repo - do popd to go back to where you started"
+  cd $repo
+  pwd
 }
 
 
