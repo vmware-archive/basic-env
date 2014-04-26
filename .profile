@@ -645,4 +645,7 @@ function gc() {
   pwd
 }
 
-
+function tt() {
+f
+$* | tee $f
+}
