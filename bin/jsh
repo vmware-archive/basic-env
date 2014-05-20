@@ -1,0 +1,2103 @@
+#!/usr/bin/perl
+# Author: Tony Hansmann
+
+## TODO
+###  make the log dir selectable - done
+#### add the from_remote_host to_other_remote_host scp
+##### broken use case - need to cover this one
+## the exclude thing is also to messed up - groups need to be ojects and be reconciled.
+
+## TODO Sun Aug 29 10:22:12 2010
+### - make jhosts do sane things without flags - hard to do because all the parsing is
+# done before the the script figures out it just dumping some names.
+
+## Thu Mar 17 14:20:00 2011 -T
+# added specifing the logfile to the commandline (-L or --logoutput)
+
+## BEGIN HEADER ##
+use strict ;
+use Getopt::Long qw(:config bundling) ;
+use IO::Dir ;
+use IO::File ;
+use IO::Select ;
+use IO::Socket ;
+use Sys::Syslog ;
+use Carp;
+use Data::Dumper;
+use Env;
+use File::Path qw{mkpath};
+use File::Basename qw{fileparse};
+
+
+
+my $ule     = '/usr/local/etc' ;
+my @cluster_d_files ;
+my $DEBUG_DUMPER = $ENV{JSH_DEBUG} || 0;
+
+# testing moving this to a bigger scope.
+my ( %cllumps, %clgroups, @clnodes ) ;
+
+# Regexps used through out the code.
+my $paired_sqr_braces = qr{\[ .* \] }xms;
+my $open_sqr_brace = qr{\]}xms;
+my $close_sqr_brace = qr{\]}xms;
+# capture a digit pattern like '009..088'
+my $leading_zero_range_capture_regex = qr{\A (0+\d+) \.\. (\d+) \z }xms;
+my $NO_leading_zero_range_capture_regex = qr{\A ([1-9] \d+) \.\. ([1-9] \d+) \z }xms;
+
+=pod
+
+going to make some addtions:
+
+] range - done
+] default cluster file - done
+] full-time logging. - done
+] ad hoc working-groups
+] examples
+
+=cut
+
+$| = 1 ;
+
+# path to look for ssh binaries on
+my @PATH = (
+    "/bin", "/usr/bin", "/usr/local/bin", "/opt/bin", "/opt/ssh/bin",
+    split( /:/, $ENV{'PATH'} )
+    ) ;
+
+
+# program name and version
+( my $PROGNAME = $0 ) =~ s/^.*\/// ;
+my $VERSION = "1.21" ;
+
+my $EFFECTIVE_USER = $ENV{USER};
+my $LOG_DIR;
+
+# if the env var has dir, use that to log to.
+# confirmed this is getting pickedup -t Fri Jul 31 07:38:47 2009
+if ($ENV{JSH_LOG_ALL} =~ m{\A / }xs  ) {
+     $LOG_DIR="$ENV{JSH_LOG_ALL}";
+}
+else {
+   $LOG_DIR="$ENV{HOME}/tmp/jsh";
+}
+
+
+# is this a filecopy operation?
+my $FILECOPY = ( $PROGNAME =~ /cp$/ ) ;
+
+# is this just a list expansion
+my $HOSTLIST_DUMP = ( $PROGNAME =~ / host (s?) \z/xms ) ;
+
+# defaults and limits
+my $DEFFANOUT = 70 ;
+my $MAXFANOUT = 4096 ;
+
+# options
+my $ALTPATH     = '' ;
+my $SHOWBAD     = '' ;
+my @CLUSTERFILES = split(/\s+/, "$ENV{JSH_CLUSTER}  $ENV{CLUSTER}" ); #
+my $SHOWERR     = '' ;
+my $FANOUT      = $ENV{JSH_FANOUT} || $DEFFANOUT ;
+my @GROUPS      = () ;
+my $HELP        = '' ;
+my $INFO        = '' ;
+my $IDENTITY    = '' ;
+my $LOGIN       = '' ;
+my $LOG_EVERYTHING  = $ENV{JSH_LOG_ALL} ;
+my $LOG_OUTPUT  = '' ;
+my $PRESERVE    = '' ;
+my $RECURSIVE   = '' ;
+my $ROOT        = '' ;
+my $SCRIPT      = '' ;
+my $SAVEGOODBAD = '' ;
+my $TIMEOUT     = 0 ;
+my $QUIT        = '' ;
+my $VERBOSE     = '' ;
+my $VERIFY_SCP  = '1' ;
+my @NODES       = () ;
+my @EXCLUDE     = () ;
+my $EXCLUDEFILE = '' ;
+my $SHOWDATE    = '' ;
+my $NOOP ;
+my @COMMAND_LINE = @ARGV;
+my $_dont_read_cluster_files =0 ;
+
+
+## END HEADER ##
+
+
+GetOptions(
+    'altpath=s'       => \$ALTPATH,
+    'showbad'         => \$SHOWBAD,
+    'clusterfile|c=s' => \@CLUSTERFILES, # change this to an array - will take file or dir, n times
+    'showerr|e'       => \$SHOWERR,
+    'fanout|f=i'      => \$FANOUT,
+    'group|g=s'       => \@GROUPS,
+    'help|h|?'        => \$HELP,
+    'identity|i=s'    => \$IDENTITY,
+    'info'            => \$INFO,
+    'login|l=s'       => \$LOGIN,
+    'logoutput|L=s'   => \$LOG_OUTPUT,
+    'preserve|p'      => \$PRESERVE,
+    'recursive|r'     => \$RECURSIVE,
+    'root|R'          => \$ROOT,
+    'script|s=s'      => \$SCRIPT,
+    'savegoodbad=s'   => \$SAVEGOODBAD,
+    'timeout|t=i'     => \$TIMEOUT,
+    'quit'            => \$QUIT,
+    'verbose'         => \$VERBOSE,
+    'node|w=s'        => \@NODES,
+    'exclude|x=s'     => \@EXCLUDE,
+    'excludefile=s'   => \$EXCLUDEFILE,
+    'date'            => \$SHOWDATE,
+    'noop|n'          => \$NOOP,
+    'D'               => \$DEBUG_DUMPER,
+    ) || die "Illegal option(s): $!\n\tsee $0 --help\n";
+
+
+if ($PROGNAME eq 'Rsh'  || $PROGNAME eq 'rsh') {
+    $ROOT = 1;
+    $SHOWERR = 1;
+}
+
+
+
+####
+# a hand-managed list of common places people put stuff. done this way beacuse
+# @foo = qw($HOME/foo) ; doesn't expand $HOME
+
+
+my @DEFAULT_CLUSTERFILES = grep { m{\w}xms } split /\s+/, "
+    $ule/CGI_clusters.jsh
+    $ule/clusters.jsh
+    $ule/jsh_cluster.d
+    /etc/CGI_clusters.jsh
+    /etc/clusters.jsh
+    $ENV{'HOME'}/etc/CGI_clusters.jsh
+    $ENV{'HOME'}/etc/clusters.jsh
+    $ENV{'HOME'}/CGI_clusters.jsh
+    $ENV{'HOME'}/etc/jsh_cluster.d
+    $ENV{'HOME'}/clusters.jsh
+    $ENV{'HOME'}/.jsh/clusters.jsh
+    $ENV{'HOME'}/.jsh
+";
+
+
+chomp @DEFAULT_CLUSTERFILES ;
+my $DEFAULT_CLUSTERFILES_STRING =  "\t" .  join("\n\t\t", @DEFAULT_CLUSTERFILES) . "\n";
+
+
+# display help
+usage() if ($HELP) ;
+
+
+if (scalar @NODES and not scalar @GROUPS) {
+    $_dont_read_cluster_files = 1;
+}
+
+else {
+
+
+
+my $cluser_file_extension_regex = qr{
+                                  \.   # literal dot
+                                  jsh  # string 'jsh'
+                                  \z   # end of line
+                          }xms ;
+
+my $cluser_dir_end_regex = qr  {
+                                   \. # literal dot
+                                   d  # literal 'd'
+                                   \z # at the end of the string
+                           }xms ;
+
+## TODO ##  when command line @CLUSTERFILES is setup, grep out the dirs and push then on the stack
+
+my @LIVE_CLUSTERFILES
+    = grep {
+        -f $_
+            and m{\.jsh\z}xms
+        } @DEFAULT_CLUSTERFILES;
+
+my @LIVE_CLUSTERDIRS = grep {
+    -d $_
+        and m{ $cluser_dir_end_regex}xms
+    } @DEFAULT_CLUSTERFILES ;
+
+
+search_for_resource_files(
+    {
+        search_paths_aref           =>  \@LIVE_CLUSTERDIRS,
+        found_resource_files_aref   =>  \@cluster_d_files,
+    }
+);
+
+push @CLUSTERFILES, @LIVE_CLUSTERFILES, @cluster_d_files;
+
+for my $file (@CLUSTERFILES) {
+    readclusterfile(
+        {   lumps        => \%cllumps,
+            groups       => \%clgroups,
+            nodes        => \@clnodes,
+            exclude_aref => \@EXCLUDE,
+            clusterfile  => $file,
+        }
+    ) ;
+}
+
+} # end else for $_dont_read_cluster_files
+
+# if (! $CLUSTERFILE) {
+#     $CLUSTERFILE = find_a_cluster_def_file(\@DEFAULT_CLUSTERFILES);
+# }
+
+# commenting out as i fixup the issue KL found Wed May  4 18:23:17 2011
+# ## TODO ## expermental to see if we can just take the first arg - may
+# ## have to remove -T Tue May 3 12:24:47 2011
+#  if (! @GROUPS && ! @NODES) {
+#      carp "expermental to see if we can just take the first arg";
+#      #lets see if we can find something in argv
+#      push @GROUPS, split(/,/, shift @ARGV);
+#  }
+
+
+
+# this takes care of spliting elements like this:
+# 0  'h,gn'
+# 1  'mah'
+# 2  'fong[09-11]'
+# and returning this:
+# 0  'h'
+# 1  'gn'
+# 2  'mah'
+# 3  'fong09'
+# 4  'fong10'
+# 5  'fong11'
+expand_nodes_with_regions(\@GROUPS,\@NODES,\@EXCLUDE);
+
+# check the fanout size
+error("fanout of more than $MAXFANOUT is not permitted")
+    if ( $FANOUT > $MAXFANOUT ) ;
+
+# use alternate path for binaries
+@PATH = split( /:/, $ALTPATH ) if ($ALTPATH) ;
+
+# create connection prefix for alternate user id
+if ($LOGIN and $ROOT) {
+    warn "-l and -R are mutually exclusive. Going with login $LOGIN\n";
+    undef $ROOT;
+}
+
+if ($ROOT) {
+    $LOGIN = "root";
+}
+
+my $USER = ( $LOGIN ? "$LOGIN\@" : "" ) ;
+
+# setup options for execution of the operation
+my ($SSH,     $SCP,       @GENOPTS, @SSHOPTS, @SCPOPTS,
+    $COMMAND, $REMSCRIPT, @SOURCES, $DESTINATION
+    ) ;
+
+@GENOPTS = ( "-o BatchMode=yes", "-o LogLevel=QUIET", "-o Protocol=2,1", "-o StrictHostKeyChecking=no" ) ;
+#@GENOPTS = ( "-o BatchMode=yes", "-o LogLevel=QUIET", "-o Protocol=2,1"  ) ;
+
+# use alternate private key file
+if ($IDENTITY) {
+    error("identity file '$IDENTITY' does not exist")
+        unless ( -f $IDENTITY ) ;
+    push( @GENOPTS, "-i$IDENTITY" ) ;
+}
+
+# find the executables and setup parameters
+$SSH = which( \@PATH, "ssh" ) ;
+@SSHOPTS = (@GENOPTS) ;
+error("cannot find the ssh executable") unless ($SSH) ;
+$SCP = which( \@PATH, "scp" ) ;
+@SCPOPTS = (@GENOPTS) ;
+error("cannot find the scp executable") unless ($SCP) ;
+
+# prevent reading from stdin and disable X11 forwarding
+push( @SSHOPTS, "-n", "-x" ) ;
+
+# is this a filecopy?
+if ($FILECOPY) {
+
+    # set options sepcific to copying files
+    push( @SCPOPTS, "-p" ) if ($PRESERVE) ;
+    push( @SCPOPTS, "-r" ) if ($RECURSIVE) ;
+
+    # build list of sources and the destinations
+    @SOURCES     = @ARGV ;
+    $DESTINATION = pop(@SOURCES) ;
+
+    # make sure we got a source and a destination
+    error() unless ( @SOURCES && $DESTINATION ) ;
+
+    # make sure sources are legal files
+    foreach my $file (@SOURCES) {
+        error("'$file' is not readable") unless ( -f $file );
+        print "local md5sum: ";
+        print qx/md5sum  $file/;
+    }
+
+}
+
+# is this a script?
+elsif ($SCRIPT) {
+    # make sure the script is readable
+    error("'$SCRIPT' is not readable") unless ( -f $SCRIPT && -r $SCRIPT ) ;
+    if (! -x $SCRIPT) {
+        $VERBOSE && "INFO: Doing a chmod og+x $SCRIPT\n";
+        qx{chmod og+x $SCRIPT};
+    }
+
+    # build remote script file name
+    $REMSCRIPT = "/tmp/jsh-$$.sh" ;
+
+
+}
+
+# must be standard command execution
+else {
+    # build the command
+    $COMMAND = join( " ", @ARGV ) ;
+    error() if ( $COMMAND =~ /^\s*$/ and not $HOSTLIST_DUMP ) ;
+}
+
+# create IO Select object
+my $SELECT = new IO::Select() ;
+
+# get ready to load all the groups and nodes
+my ( @nodes, %nodegroup ) ;
+
+# only need cluster info if there are groups or no nodes
+if ( $#GROUPS >= 0 || $#NODES < 0 ) {
+
+    # # make sure clusterfile is available
+    # error("cluster file '$CLUSTERFILE' does not exist")
+    #     if ( $CLUSTERFILE && !-f $CLUSTERFILE ) ;
+
+    # read in the cluster file
+    for my $file (@CLUSTERFILES) {
+    ## TODO make sure this is ok to comment out -T Sun May  1 15:01:15 2011
+    # readclusterfile( \%cllumps, \%clgroups, \@clnodes, \@EXCLUDE )
+    #     if ($CLUSTERFILE) ;
+}
+
+        # add any selected cluster groups to the node list
+    foreach (@GROUPS) {
+        getclusternodes( \%cllumps, \%clgroups, $_, \@nodes, \%nodegroup ) ;
+    }
+    $DEBUG_DUMPER and carp "AFTER getclusternodes: ", Dumper(\@nodes);
+
+        if ( $#GROUPS < 0 && $#NODES < 0 ) {
+            # default from Johnny was to use all in clusterfile - Idon't like
+            # that - changing to no-op
+            #   allclusternodes( \@clnodes, \@nodes, \%nodegroup )
+            warn "EXITING: No Lumps, Groups or nodes were specified\n";
+            exit;
+        }
+
+}
+
+# check for valid exclude file
+error("exclude file '$EXCLUDEFILE' does not exist")
+    if ( $EXCLUDEFILE && !-f $EXCLUDEFILE ) ;
+
+# add any nodes listed on the command line
+foreach  (@NODES) {
+    addnode( \@nodes, \%nodegroup,  $_ ) ;
+}
+
+
+# make sure we keep nodes that came in on the command line the new
+# code (may 2011) introduced a bug where node passed in on the
+# commandline were excluded.  do a standard diff two lists to and pull
+# out anything that came in on the commandsline -T Wed May  4 18:26:18 2011
+if ($_dont_read_cluster_files) {
+    1;
+}
+else {
+    # make sure nodes passed in on the commandline are kept even if
+    # (especially if) they are excluded in cluster_d_file somewhere
+    # this pattern is so useful it should be function or a lib or
+    # somthinng. -T Thu May 5 07:17:02 2011
+    my %keep_these;
+    map { $keep_these{$_}++ }  @NODES;
+    @EXCLUDE = grep { ! $keep_these{$_} ++ } @EXCLUDE;
+}
+## TODO - check for excludles here:
+# remove any excluded nodes
+foreach (@EXCLUDE) { deletenode( \@nodes, $_ ) ; }
+
+# remove any nodes listed in exclude file
+if ( $EXCLUDEFILE && -f $EXCLUDEFILE ) {
+    open( EXCLUDE, $EXCLUDEFILE ) ;
+    while (<EXCLUDE>) {
+        chomp ;
+        s/^\s+// ;
+        s/\s+$// ;
+        deletenode( \@nodes, $_ ) ;
+    }
+    close(EXCLUDE) ;
+}
+
+# get length of longest node name
+my $LONGEST = longest( \@nodes ) ;
+
+# print out info on planned execution
+printinfo( \@nodes, \%nodegroup ) if ( $INFO || $VERBOSE || $QUIT ) ;
+exit 0 if ($QUIT) ;
+
+if ($HOSTLIST_DUMP) {
+    print join ("\n", @nodes), "\n";
+    exit 0;
+}
+
+
+
+# check that nodes are listening on ssh port
+my ( @goodnodes, @badnodes ) ;
+
+checknodes( \@nodes, \@goodnodes, \@badnodes ) ;
+
+savegoodbad( \@goodnodes, \@badnodes ) if ($SAVEGOODBAD) ;
+
+# print list of nodes that failed ssh port check
+printbad( \@badnodes ) if ( $SHOWBAD || $VERBOSE ) ;
+
+# check for good nodes
+error("no nodes to execute on!") unless ( $#goodnodes >= 0 ) ;
+
+# run command on good nodes
+logger() ;
+my $results = runcommands( \@goodnodes ) ;
+
+# $LOG_EVERYTHING is pulled from env var $JSH_LOG_ALL
+if ($LOG_EVERYTHING || $LOG_OUTPUT) {
+    write_log($results);
+}
+
+exit 0 ;
+
+##############################################################################
+
+sub usageheader {
+    my ($error) = @_ ;
+
+    print "\n",
+        ( $error ? "ERROR: $error\n\n" : "" ),
+        "usage: $PROGNAME [<options>] ",
+        ( $FILECOPY ? "<source> [<source>...] <destination>" : "<command>" ),
+        "\n\n" ;
+
+}
+
+sub error {
+    my ($error) = @_ ;
+
+    usageheader($error) ;
+    print "       $PROGNAME -? for more detailed information on options\n\n" ;
+    exit 1 ;
+
+}
+
+sub usage {
+    my ($error) = @_ ;
+    usageheader($error) ;
+
+
+
+print <<EOF
+$PROGNAME: Version $VERSION
+
+options:
+
+    -c or --clusterfile <clusterfile || cluster.d directory> cluster
+        file that defines nodes to execute on, call multiple times to
+        add files. Files and directories can be freely
+        mixed. Additionally, the \$CLUSTER environment variable will
+        be used.
+
+        $PROGNAME also supports reading cluster files from a
+        directory. Any file in a named dir with the 'jsh' extension
+        will be read.  GROUPS are additive. This is useful for ad hoc
+        server sets like EC2 instances.
+
+        In addition to any value specifed with --clusterfile the
+        following locations will also be searched for cluster
+        definition files. Default Cluster file search path:
+
+EOF
+    ;
+print "\t$DEFAULT_CLUSTERFILES_STRING\n\n";
+
+print <<EOF
+    -e or --showerr
+        show standard error from remote commands
+        default is that stderr is suppressed
+
+    -f or --fanout <fanout>
+        fanout size (number of parallel threads to run)
+        if not specified the \$FANOUT environment variable is used
+        default is $DEFFANOUT - maximum is $MAXFANOUT
+
+    -g or --group <group>,...
+        groups from clusterfile or database to execute commands on
+
+    -h or --help or -?
+        displays this help information
+
+    -i or --identity <keyfile>
+        use a different SSH private key file for authentication
+
+    -l or --login <login>
+        use different login on remote connection
+        default is to use the same login as the local user
+
+    -L or --logoutput <full-path-to-file>
+        Use this logfile instead of ~/tmp/jsh/jsh-xxx, if file
+        exists it is truncated before writing
+
+    -R synonym for "--login root"
+
+    -s or --script <filename>
+        execute the named script remotely instead of a command.
+        <filename> must be set executable. jsh will scp the file to
+        specified remote machines, then ssh to them to execute the file.
+        Useful for complex quoting, if/then's or loops. Script is
+        deleted from remote hosts after execution.
+
+    -t or --timeout <timeout>
+        timeout (in seconds) for the command to complete
+        default is 0, which means no timeout
+
+    -w or --node <node>,...
+        list of nodes to execute on
+
+    -x or --exclude <node>,<group>...
+        list of nodes and/or groups to exclude from execution
+
+    --excludefile <filename>
+        file with list of nodes to exclude from execution
+
+    --altpath <pathstring>
+        specify alternate directory for ssh executable
+        path elements are delimited by ':'
+
+    --date
+        add date/time that execution completed to each output
+
+    --info
+        display all the information about what will be executed
+
+    --showbad
+        show list of nodes that failed ssh port scan
+
+    --savegoodbad <filename>
+        save lists of good and bad nodes from port scan
+        using the indicated filename as the base for the two files
+
+    --quit
+        display all the information about what would be executed and quit
+
+    --verbose
+        verbose output including results of ssh port scans
+        and the start and end of each thread
+
+Examples:
+
+$PROGNAME -R -g hoard -w isi-test[001-004] "cd /etc/ ; md5sum passwd group shadow"
+    # ssh to machines defined in cluster definition file [ @CLUSTERFILES ]
+    # -R : as root
+    # -g hoard : the group called hoard
+    # -w isi-test[009-011] : expand list to "isi-test009 isi-test0010 isi-test011"
+    # "cd /etc/ ; md5sum passwd group shadow" : commands to execute on far boxes
+
+
+$PROGNAME -R -g hoard -x hoard[001-004] "netstat -a -p tcp|wc -l"
+    # -x -x hoard[001-002] : exclude nodes hoard001 and hoard002
+    # "netstat -a -p tcp|wc -l" : do some netstat counting
+
+If the string \%\%HOSTNAME\%\% appears in the command, it will be replaced
+with the hostname of the target node.
+
+$PROGNAME -R -g hoard "mkdir -p /ifs/sup/\%\%HOSTNAME\%\% ; cp -a /etc/mcp /ifs/sup/\%\%HOSTNAME\%\%"
+    # for hoard001 will make dir /ifs/sup/hoard001 and copy /etc/mcp into it.
+
+
+Cluster defintion file Example
+###############################
+
+# aliases are supported for LUMPS and groups:
+LUMP:all prod
+gnoll
+hoard_smartconnect
+
+
+GROUP:gnoll gn g
+gnoll[2-3,5-107,109-110,112-145]  # list with gaps, defines 142 hosts
+gnoll-sun[01-10]                  # list with zero padding
+
+
+GROUP:hoard_smartconnect hsc
+# get this list from
+# 'https://192.168.01.190:8080/NetworkEdit?subnet=auto-ext1&init=true#'
+####
+172.22.75.[11-200, 210, 212 ] # spaces are alright
+
+GROUP:audiomatch am
+match-[1-40] # spaces are alright
+x match-1    # an 'x' 'space' means exclude this machine or range
+x match-[14-19]
+EOF
+;
+    if ($FILECOPY) {
+
+        print STDOUT <<EOF
+
+    $0 md5sum's the list of local files and after it copies them to the far machine
+    so the user can confirm the file made it across correctly.
+
+    -p or --preserve
+        preserve permissions and timestamps on file copies
+
+    -r or --recursive
+        recursive file copy for directories
+
+
+If the string \%\%HOSTNAME\%\% appears in the command, it will be replaced
+with the hostname of the target node.
+
+VARIABLES:
+
+The following shell ENV variables are read by $0
+
+   JSH_CLUSTER=/usr/local/etc/CGI_clusters.jsh
+     # location of the cluster file
+
+   JSH_LOG_ALL=1
+     # automatically log all jsh output to \$HOME/tmp/jsh/jsh-[nn]
+   or
+   JSH_LOG_ALL=$HOME/custom_log_dir # output goes to \$HOME/custom_log_dir/jsh-[nn]
+
+   JSH_DEBUG=1
+     # print lots of debug information - mostly useful for debugging the cluster definition file.
+
+   JSH_FANOUT=70
+     # How many ssh session to run in parallel. Set to 1 to do one machine at a time.
+
+
+EOF
+            ;
+
+    }
+
+    exit 1 ;
+
+}
+
+##############################
+##########
+# Sat Jul 11 19:03:09 2009
+#
+sub which {
+    my ( $path, $file ) = @_ ;
+
+    # look for the indicated file on the indicated path
+    foreach (@$path) {
+        s/\/+$// ;
+        return "$_/$file" if ( -x "$_/$file" ) ;
+    }
+
+    # didnt find the file
+    return undef ;
+}
+
+##############################
+##########
+# Sat Jul 11 19:02:59 2009
+# Cluster file format defined the in usage() sub
+# sub readclusterfile {
+#     my ( $lumps, $groups, $nodes, $exclude_aref ) = @_ ;
+#     my ( $state, $unit,  ) ;
+#     my $lump_state = 'lump';
+#     my $group_state = 'group';
+
+#     # regex for indicator we should exclude this entry or range
+#     # in the $JSH_CLUSTER file it looks like:
+#     # x foo[13-17,19]
+#     my $exclued_flag_regexp = qr{\A \s* x \s+ }oxs;
+
+#     # read through the clusterfile,
+#     # CLUSTERFILE looks like a global here
+#     open CLUSTER, $CLUSTERFILE || do {
+#         carp "ERROR: can not open cluster definition file [$CLUSTERFILE] - $!";
+#         return ;
+#                                    };
+#     TOPLOOP: while (<CLUSTER>) {
+#         chomp ;
+#         next if ( m{^\s*$} || m{^\s*#} ) ;
+
+#         my $exclude_me;
+#         if ($state eq $lump_state || $state eq $group_state){
+#             if (s{$exclued_flag_regexp}{}xms) {
+#                 $exclude_me = 1;
+#             }
+#         }
+
+#         # is this a lump?
+#         if (s/^LUMP:\s*//) {
+#             my (@AKA, $lump_unit_addr ) ;
+#             # split, even if it's just one name this'll be easier to manage
+#             @AKA = split /\s+/, $_;
+#             # $unit is 1st name
+#             $unit           = shift @AKA ;
+#             $state          = $lump_state ;
+#             # get a anon array
+#             $lumps->{$unit} = [] ;
+#             if (@AKA) {
+#                 $lump_unit_addr = $lumps->{$unit};
+#                 map { $lumps->{$_} = $lump_unit_addr } @AKA;
+
+#             }
+
+#             next TOPLOOP ;
+#         }
+
+#         # is this a group?
+#         if (s/^GROUP:\s*//) {
+#             my (@AKA, $groups_unit_addr ) ;
+#             @AKA = split /\s+/, $_;
+#             $unit            = shift @AKA ;
+#             $state           = $group_state ;
+#             $groups->{$unit} = [] ;
+#             if (@AKA) {
+#                 $groups_unit_addr = $groups->{$unit};
+#                 map { $groups->{$_} = $groups_unit_addr } @AKA;
+
+#             }
+
+#             next TOPLOOP;
+#         }
+
+#         ####
+#         # if we make it here we are defining the elements of a LUMP or GROUP
+#         # cleanup spaces in the incoming line.
+#         s{#.*$}{};
+#         s{\s+}{}xmsg;
+
+
+#         # push entry
+#         push( @{ $lumps->{$unit} },  $_ ) if ( $state eq $lump_state ) ;
+#         next if ( $state eq $lump_state );
+
+#         if ( m{ $paired_sqr_braces }xms ) {
+#           $DEBUG_DUMPER and carp "in readclusterfile() expanding $_\n";
+#           EXPANDED: for my $expanded_node (get_name_range($_) ){
+#                $DEBUG_DUMPER and carp "expanded node: $expanded_node\n";
+#                $exclude_me and do {
+#                    push @{$exclude_aref}, $expanded_node;
+#                    next EXPANDED;
+#                    };
+#                push( @{ $groups->{$unit} }, $expanded_node ) if ( $state eq $group_state ) ;
+#                push( @$nodes, { 'node' => $expanded_node, $group_state => $unit } );
+#             }
+#         }
+#         else {
+#             $exclude_me and do {
+#                 push @{$exclude_aref}, $_;
+#                 next TOPLOOP;
+#                 };
+
+#             push( @{ $groups->{$unit} }, $_ ) if ( $state eq $group_state ) ;
+#             push( @$nodes, { 'node' => $_, $group_state => $unit } );
+#         }
+#     } # end TOPLOOP:
+#     # close the file
+#     close CLUSTER ;
+#     # do the right thing with exclude lists Mon Aug 17 21:44:06 2009 -T
+#     # if the exclude has any elements
+#     if ( $#$exclude_aref) {
+#         my (@remove_list, @expanded_exclude_list);
+
+#         for  (@$exclude_aref) {
+#             if (defined $groups->{$_}) {
+#                 # push the group on a holding arrary
+#                 push @expanded_exclude_list, @{$groups->{$_}};
+#                 # undef the value we just replaced
+#                 $_ = '';
+
+#             }
+#         }
+#         # push all the groups we captured onto the exculde list. -T
+#         push @$exclude_aref, @expanded_exclude_list;
+
+#     }
+#    $DEBUG_DUMPER and carp Dumper(\$groups);
+# }
+
+
+##############################################################################
+
+sub addnode {
+    my ( $nodes, $nodegroup, $node, $group ) = @_ ;
+
+    # ignore duplicate nodes
+    # only warn
+    if ( exists( $nodegroup->{$node} ) ) {
+        my $group1 = $nodegroup->{$node} ;
+        $VERBOSE && print STDERR "ignoring duplicate node: $node"
+            . ( $group  ? " (group: $group)"       : "" )
+            . ( $group1 ? " - already in: $group1" : "" )
+            . "\n" ;
+        return ;
+    }
+    push( @$nodes, $node ) ;
+    $nodegroup->{$node} = $group ;
+
+}
+
+##############################################################################
+
+sub deletenode {
+    my ( $nodes, $node ) = @_ ;
+
+    # find the node and delete it
+    for ( my $x = $#nodes; $x >= 0; $x-- ) {
+        splice( @$nodes, $x, 1 ) if ( $nodes->[$x] eq $node ) ;
+    }
+
+}
+
+##############################################################################
+
+sub getclusternodes {
+    my ( $lumps, $groups, $unit, $nodes, $nodegroup ) = @_ ;
+
+    my ( @groups, $group, $node ) ;
+
+    # if the unit requested is a lump, add all the groups to the list
+    push( @groups, @{ $lumps->{$unit} } ) if defined( $lumps->{$unit} ) ;
+
+    # if the unit requested is a group, add it to the list of groups
+    push( @groups, $unit ) if defined( $groups->{$unit} ) ;
+
+    # loop through each group and add the nodes for the group
+    foreach $group (@groups) {
+        foreach $node ( @{ $groups->{$group} } ) {
+            addnode( $nodes, $nodegroup, $node, $group ) ;
+        }
+    }
+
+}
+
+##############################################################################
+
+sub allclusternodes {
+    my ( $clnodes, $nodes, $nodegroup ) = @_ ;
+
+    # add all the nodes from the clusterfile
+    foreach (@$clnodes) {
+        addnode( $nodes, $nodegroup, $_->{'node'}, $_->{'group'} ) ;
+    }
+
+}
+
+##############################################################################
+
+sub longest {
+    my ($names) = @_ ;
+
+    # find the length of the longest entry in the names array
+    my $longest = 0 ;
+    foreach (@$names) {
+        $longest = length($_) if ( length($_) > $longest ) ;
+    }
+
+    # retrun the length
+    return $longest ;
+}
+
+##############################################################################
+
+sub printinfo {
+    my ( $nodes, $nodegroup ) = @_ ;
+
+    # print general info
+    print STDERR "\n", instance_info();
+
+    # print a list of the nodes that will be used
+    my $index = 1 ;
+    foreach (@$nodes) {
+        printf STDERR "Node:%6d  Group: %-20s  Host: %-20s\n",
+            $index++, $nodegroup->{$_}, $_ ;
+    }
+    print STDERR "\n" ;
+
+    return ;
+}
+
+
+
+##############################
+##########
+# Sun Jul  5 14:40:01 2009
+#
+sub instance_info {
+    my ( $nodes, $nodegroup ) = @_ ;
+
+    # print general info
+    my $instance_info .=
+          $FILECOPY ? "Filecopy : '"
+        . join( "' '", @SOURCES )
+        . "' -> '$DESTINATION'"
+        : (
+        $SCRIPT ? "Script   : '$SCRIPT'"
+        : "Command  : '$COMMAND'"
+        ) ;
+ $instance_info  .= "\n"
+        . "Fanout   : $FANOUT\n"
+        . "Timeout  : $TIMEOUT\n"
+        . ( $LOGIN          ? "Login as : $LOGIN\n"          : "" )
+        . ( $EFFECTIVE_USER ? "User     : $EFFECTIVE_USER\n" : "" )
+        . ( $IDENTITY       ? "Identity : $IDENTITY\n"       : "" )
+        . (  @CLUSTERFILES ? "Cluster file(s): " . join( ', ', @CLUSTERFILES ) . "\n": "\n" )
+        . ( @COMMAND_LINE
+        ? "Command line : $PROGNAME " . join( q{ }, @COMMAND_LINE ) . "\n"
+        : "" )
+        . "\n" ;
+
+    return $instance_info ;
+
+}    ### end sub instance_info
+
+
+##############################################################################
+sub logger {
+
+    my @log ;
+
+    # log only if executing as root
+    return unless ( $> == 0 ) ;
+
+    # include datasource for cluster groups
+    push( @log, "-c '" . join(', ', @CLUSTERFILES) . "'" ) if (@CLUSTERFILES) ;
+    #    push( @log, "-c '$CLUSTERFILE'" ) if ($CLUSTERFILE) ;
+
+    # add all the standard options that affect execution
+    push( @log, "-g " . join( ',', @GROUPS ) )  if ( $#GROUPS >= 0 ) ;
+    push( @log, "-w " . join( ',', @NODES ) )   if ( $#NODES >= 0 ) ;
+    push( @log, "-x " . join( ',', @EXCLUDE ) ) if ( $#EXCLUDE >= 0 ) ;
+    push( @log, "--excludefile $EXCLUDEFILE" ) if ($EXCLUDEFILE) ;
+    push( @log, "-l $LOGIN" )                  if ($LOGIN) ;
+    push( @log, "-i '$IDENTITY'" )             if ($IDENTITY) ;
+    push( @log, "-p" )                         if ($PRESERVE) ;
+    push( @log, "-r" )                         if ($RECURSIVE) ;
+
+    # add the command that will be executed
+    push(
+        @log,
+        (   $FILECOPY
+            ? "'" . join( "' '", @SOURCES ) . "' '$DESTINATION'"
+            : ( $SCRIPT ? "-s '$SCRIPT'" : "'$COMMAND'" )
+            )
+            ) ;
+
+    # create the ident value and the log entry
+    my $ident =
+          ( $FILECOPY ? 'jcp' : 'jsh' ) . "("
+        . ( getlogin() || getpwuid($<) || "unknown" )
+        . ")" ;
+    my $log = join( ' ', @log ) ;
+
+    # generate the syslog entry
+    openlog( $ident, 'pid', 'user' ) ;
+    syslog( 'info', '%s', $log ) ;
+    closelog() ;
+
+}
+
+##############################################################################
+
+sub checknodes {
+    my ( $checknodes, $goodnodes, $badnodes ) = @_ ;
+
+    # hashes to store info about executing threads and all the results
+    my ( %threads, %results, $pid, $node ) ;
+
+    # create a destroyable copy of the list of nodes
+    my @checks = @$checknodes ;
+
+    # determine the proper fanout size
+    $FANOUT = ( $FANOUT > scalar @checks ) ? scalar @checks : $FANOUT ;
+
+    # fork all the initial threads
+    for ( 1 .. $FANOUT ) { forknodecheck( shift(@checks), \%threads ) ; }
+
+    # prepare to display results in order
+    my $resindex = 0 ;
+
+    # wait for a process to complete
+    while ( ( $pid = wait() ) > 0 ) {
+
+        # store the result of the port check
+        $results{ $threads{$pid} } = ( $? == 0 ) ;
+
+        # delete the completed thread
+        delete $threads{$pid} ;
+
+        # fork a new thread, if there are still nodes to run
+        forknodecheck( shift(@checks), \%threads ) if ( scalar @checks ) ;
+
+        # store and print the results for sequentially completed threads
+        while ( defined( $results{ $checknodes->[$resindex] } ) ) {
+            $node = $checknodes->[ $resindex++ ] ;
+            if   ( $results{$node} ) { push( @$goodnodes, $node ) ; }
+            else                     { push( @$badnodes,  $node ) ; }
+            printf STDERR "%-${LONGEST}s: ssh port check %s\n", $node,
+                ( $results{$node} ? "passed" : "failed" )
+                if $VERBOSE ;
+
+        }
+
+    }
+
+    # debug output
+    print STDERR "\n" if $VERBOSE ;
+
+}
+
+##############################################################################
+
+sub forknodecheck {
+    my ( $node, $threads ) = @_ ;
+
+    # make sure we got a node to check
+    return 0 unless defined($node) ;
+
+    # fork the process -- just need the return code
+    my $pid = fork() ;
+    die "fork didn't work: $!\n" unless ( defined $pid ) ;
+
+    # is this the child?
+    if ( $pid == 0 ) {
+
+        # perform the port 22 socket connection
+        my $sock = IO::Socket::INET->new(
+            PeerAddr => $node,
+            Timeout  => 5,
+            PeerPort => 'ssh(22)',
+            Proto    => 'tcp'
+            ) ;
+
+        # if we got a good socket then close it and exit
+        if ($sock) {
+            close($sock) ;
+            exit 0 ;
+        }
+
+        # not a good socket so exit with an error
+        exit 1 ;
+    }
+
+    # store the node name for the pid in the threads
+    $threads->{$pid} = $node ;
+    return $pid ;
+
+}
+
+##############################################################################
+
+sub savegoodbad {
+    my ( $goodnodes, $badnodes ) = @_ ;
+
+    # save out the list of good nodes
+    open GOODNODES, ">$SAVEGOODBAD.good" ;
+    foreach (@$goodnodes) {
+        print GOODNODES "$_\n" ;
+    }
+    close GOODNODES ;
+
+    # save out the list of bad nodes
+    open BADNODES, ">$SAVEGOODBAD.bad" ;
+    foreach (@$badnodes) {
+        print BADNODES "$_\n" ;
+    }
+    close BADNODES ;
+
+}
+
+##############################################################################
+
+sub printbad {
+    my ($badnodes) = @_ ;
+
+    # make sure there are some bad ones, otherwise stay silent
+    return unless ( scalar @$badnodes ) ;
+
+    # print the list of nodes that failed the port check
+    print STDERR "\nBad Nodes: (failed ssh port check)\n\n" ;
+    foreach (@$badnodes) {
+        print STDERR $_ . "\n" ;
+    }
+    print STDERR "\n" ;
+
+}
+
+##############################################################################
+
+sub runcommands {
+
+
+    my ($runnodes) = @_ ;
+
+    # hashes to store info about executing threads and all the results
+    my ( %threads, %results ) ;
+
+    # create a destroyable copy of the list of nodes
+    my @runs = @$runnodes ;
+
+    # determine the proper fanout size
+    $FANOUT = ( $FANOUT > scalar @runs ) ? scalar @runs : $FANOUT ;
+
+    # fork all the initial threads
+    for ( 1 .. $FANOUT ) {
+        forkcommand( shift(@runs), \%threads, \%results ) ;
+    }
+
+    # prepare to display results in order
+    my $resindex = 0 ;
+
+    # wait for the select to say that one or more  threads are readable
+    while ( my @ready = $SELECT->can_read ) {
+
+        # loop throuch the filehandles for each reabable thread
+        foreach my $handle (@ready) {
+
+            # get the node name and the pid of the thread
+            my $node = $threads{$handle}->{'node'} ;
+            my $pid  = $threads{$handle}->{'pid'} ;
+
+            # read all the available output from the threads's filehandle
+            my $buf = <$handle> ;
+
+            # if there is output, then aadd it to the thread's results
+            if ($buf) {
+
+                $results{$node}->{'text'} .= $buf ;
+
+            }
+
+            # if there is no ouput, then the thread is complete
+            else {
+
+                # mark the node as done and record the time it completed
+                $results{$node}->{'done'} = 1 ;
+                $results{$node}->{'date'} = localtime() ;
+
+                # remove the filehandle from the select and close it
+                $SELECT->remove($handle) ;
+                close($handle) ;
+
+                # delete the entry for the executing thread
+                delete $threads{$handle} ;
+
+                # debug output
+                print STDERR "INFO: $node completed ($pid)\n" if ($VERBOSE) ;
+
+                # fork a new thread, if there are still nodes to run
+                forkcommand( shift(@runs), \%threads, \%results )
+                    if ( scalar @runs ) ;
+
+                # for the printed output add a ':' to each node and
+                # then find the longest string so our output is lined up
+                my @successful_nodes = sort keys %results;
+                @successful_nodes = map { $_ . ":"} @successful_nodes;
+                my $OUTPUT_LONGEST = longest(\@successful_nodes);
+
+                # print the results for sequentially completed threads
+                while ( $results{ $runnodes->[$resindex] }->{'done'} ) {
+                    my $node = $runnodes->[ $resindex++ ] ;
+                    my $header =
+                        # seting if i like output better without the ':' between hosts and output
+                        sprintf( "%-${OUTPUT_LONGEST}s ", $node . ":" )
+                        . ( $SHOWDATE
+                        ? "(" . $results{$node}->{'date'} . ") "
+                        : "" ) ;
+                    chomp( my $output = $results{$node}->{'text'} ) ;
+                    if (! defined $output) {
+                        $output = "{no output}";
+                    }
+                    $output =~ s/\n/\n$header/g ;
+                    print $header . $output . "\n" ;
+                }
+
+            }
+
+        }
+
+    }
+
+    # debug output
+    print STDERR "\n" if $VERBOSE ;
+    return \%results;
+
+}
+
+##############################################################################
+
+sub forkcommand {
+    my ( $node, $threads, $results ) = @_ ;
+    my (@files, $file_list, $printed_local);
+    # open anonymous filehandle and fork w/ output going to parent
+    my $handle = new IO::File ;
+    my $pid = open $handle, "-|" ;
+    die "fork didn't work: $!\n" unless ( defined $pid ) ;
+
+    # is this the child?
+    if ( $pid == 0 ) {
+
+        my ( $out, $res ) ;
+
+        if ($FILECOPY) {
+            # flatten the list of src files so we can do md5sums on the far box to confirm them made it.
+            # Sat Jul 25 13:25:38 2009 -Tony
+            @files = map { (split q{/}, $_)[-1]} @SOURCES;
+            $file_list = join " ", @files;
+
+            # do the filecopy
+            $res = docmd(
+                [ $SCP, @SCPOPTS, @SOURCES, "$USER$node:$DESTINATION" ],
+                $TIMEOUT, \$out ) ;
+            #expermental - do an md5sum the files we just copied to confirm they
+            # got there. -Tony Thu Jul  9 15:36:55 2009
+            if ($VERIFY_SCP) {
+                # the shell ifthenelse executes on the far machine to do the right on the
+                # md5sum when you do something like jcp -g gn /tmp/foo.txt /tmp/bar.txt
+                # Sat Jul 25 13:24:27 2009  -tony
+                docmd(
+                    [ $SSH, @SSHOPTS, "$USER$node",
+                         "if [ -d $DESTINATION ] ; then  cd $DESTINATION; md5sum  $file_list; else md5sum $DESTINATION; fi" ], $TIMEOUT, \$out) ;
+            }
+
+        }
+        elsif ($SCRIPT) {
+
+            # execute the remote script
+            docmd( [ $SCP, @GENOPTS, $SCRIPT, "$USER$node:$REMSCRIPT" ],
+                60, \$out ) ;
+            $res = docmd( [ $SSH, @SSHOPTS, "$USER$node", $REMSCRIPT ],
+                $TIMEOUT, \$out ) ;
+            docmd( [ $SSH, @SSHOPTS, "$USER$node", "rm $REMSCRIPT" ], 30 ) ;
+
+        }
+        else {
+
+            # execute the remote command
+            ( my $command = $COMMAND ) =~ s/\%\%HOSTNAME\%\%/$node/g ;
+            $res = docmd( [ $SSH, @SSHOPTS, "$USER$node", $command ],
+                $TIMEOUT, \$out ) ;
+
+        }
+
+        print $out;
+        exit $res ;
+    }
+
+    # add the filehandle to be watched by the select
+    $SELECT->add($handle) ;
+
+    # store the thread info and create a result record
+    $threads->{$handle} = { 'node' => $node, 'pid' => $pid } ;
+    $results->{$node} = { 'done' => 0, 'date' => undef, 'text' => '' } ;
+
+    # debug output
+    print STDERR "INFO: $node started ($pid)\n" if ($VERBOSE) ;
+
+}
+
+##############################################################################
+
+sub docmd {
+    my ( $cmd, $timeout, $outref ) = @_ ;
+    my ( $out, $res ) ;
+
+    # fork w/ output going to parent
+    my $pid = open CMD, "-|" ;
+    die "fork didn't work: $!\n" unless ( defined $pid ) ;
+
+    # is this the child?
+    if ( $pid == 0 ) {
+
+        # set stdout handling as requested
+        open STDERR, ( $SHOWERR ? ">&STDOUT" : ">/dev/null" ) ;
+
+        # exec the command
+        exec(@$cmd) ;
+
+        # should not get here
+        die "can't exec: $!" ;
+    }
+
+    # make sure timeout value is legal
+    $timeout = 0 unless ( $timeout > 0 ) ;
+
+    # alarm handling must be done in eval block
+    eval {
+
+        # set alarm timeout
+        local $SIG{ALRM} = sub { die "alarm timeout" } ;
+        alarm $timeout ;
+
+        # collect output  and result from the command
+        while (<CMD>) {
+            $out .= $_ ;
+        }
+        close(CMD) ;
+        $res = $? ;
+
+        # clear the alarm
+        alarm 0 ;
+    } ;
+
+    # did we get an alarm timeout error?
+    if ( $@ =~ /alarm timeout/ ) {
+
+        # kill the process and add an error message to the output
+        kill( 9, $pid ) ;
+        $out
+            .= "ERROR: command '"
+            . join( ' ', @$cmd )
+            . "' timed out after $timeout seconds\n" ;
+        $res = 1 ;
+
+    }
+
+    # die if we got some other eval error
+    elsif ($@) {
+        die ;
+    }
+
+    # add the output to the passed if reference if it is valid
+    $$outref .= $out if ( ref($outref) eq "SCALAR" ) ;
+
+    # return the result of the exec
+    return $res ;
+
+} # end sub docmd
+
+
+
+##############################
+##########
+# Sun Jul  5 16:48:05 2009
+#
+# TODO - write the nodes run against, excluded, failed.
+sub write_log {
+    my $results = shift @_;
+    my @INSTANCE_INFO;
+    my $logfile;
+    my ($name,$dirpath,$suffix);
+    $DEBUG_DUMPER and carp "in write_log: ",  Dumper(\$results), sort keys %$results, "\n";
+    if ($LOG_OUTPUT) {
+        ($name,$dirpath,$suffix) = fileparse($LOG_OUTPUT);
+        if (-d $dirpath || mkpath $dirpath) {
+            $logfile = $LOG_OUTPUT;
+        }
+        else {
+            carp "unable to create dir $dirpath: $!"
+                , "no log will be written\n";
+        }
+    }
+    else {
+        $logfile = gen_log_name($LOG_DIR,$PROGNAME);
+        $DEBUG_DUMPER && carp "got logfile $logfile\n";
+    }
+    my  $LOG;
+    $LOG = new IO::File "$logfile", "w" || warn "Unable to open $logfile: $!";
+    print $LOG "###### ", scalar localtime, "\n";
+    # stick some hashmarks to the front of these lines.
+    @INSTANCE_INFO = grep {m{Fanout|User|Command|Cluster}xms}  split /\n/, instance_info();
+    print $LOG map {"###### " . $_ . "\n"}  @INSTANCE_INFO;
+    #TODO - check results and see what empty lines are doing.
+    # also see if stderr is hanging out somewhere and at least flag for it.
+    $DEBUG_DUMPER && carp join(q{ },sort_properly(keys %$results));
+    my @sorted_nodenames = sort_properly(keys %$results);
+  NODE:  for my $node ( @sorted_nodenames) {
+        next NODE if not $node =~ m{\w+};
+        my  @lines = split /\n/, $results->{$node}->{'text'};
+        if (@lines) {
+
+            for my $line (@lines) {
+                print $LOG "$node: $line\n";
+            }
+        }
+        else {
+            print $LOG "$node: =nooutput=\n";
+
+        }
+        print $LOG "\n";
+    }
+    close $LOG;
+} # end write_log
+
+
+##############################
+##########
+# Mon Sep  7 19:02:28 2009
+# sort by stem, then numeric. the result is foo2 will come before foo100
+#
+sub sort_properly {
+    my @messy_array = @_ ;
+    my %h ;
+    my @good_array ;
+    my @unsortable ;
+
+    $DEBUG_DUMPER && carp "in sort_properly, messy_array: ", join( q{ }, @messy_array ) ;
+    for (@messy_array) {
+        my @num_groups = m{(\d+)}xmsg ; # count number groups we can only handle one right now
+        if ( scalar @num_groups == 1 ) {
+            # regex finds a non-number part and a number part
+            my ( $stem, $number ) = m{(\D+) (\d+)?}xsmo ;
+            $DEBUG_DUMPER && carp "stem: [$stem], number: [$number]" ;
+            next if not $stem ;
+            push @{ $h{$stem} }, $number ;
+            undef $stem, $number ;
+        }
+        else {
+           push @unsortable, $_;
+        }
+    }
+    for my $stem ( sort keys %h ) {
+        my @sorted = sort { $a <=> $b } @{ $h{$stem} } ;
+
+        # glue them back together in the right order
+        push @good_array, map { $stem . $_ } @sorted ;
+        undef @sorted ;
+    }
+    $DEBUG_DUMPER && carp "in sort_properly: ", join( q{ }, @good_array ) ;
+    @unsortable = sort @unsortable ;
+    push @good_array, @unsortable;
+    return @good_array ;
+}
+
+
+##############################
+##########
+# Sun Jul  5 16:48:01 2009
+#
+sub gen_log_name {
+    my $dir = shift @_;
+    my $logbase = shift @_;
+    my $logname;
+    my @SORTED_FILE_LIST;
+    my $last_file;
+    my $next_increment;
+    my $last_increment;
+
+
+    if (! -d $dir) {
+        mkpath $dir || warn "unable to create dir $dir: $!"
+            , "no log will be written\n";
+        return 0;
+    }
+
+#     for (0..$LOG_NUMBER_MAX) {
+#         next if  -f "$dir/${logbase}-${_}";
+#         return  "$dir/${logbase}-${_}";
+#     }
+
+    @SORTED_FILE_LIST = &get_and_sort_filelist($dir, $logbase);
+    $last_file = $SORTED_FILE_LIST[-1];
+    ($last_increment) = $last_file =~ m{ (\d+) \z}xmso;
+    # was a bug here it he dir was new - no increment was set so no
+    # log was written - fixed now Fri Mar 18 11:08:04 2011 -T
+    $next_increment ||= 1;
+    $next_increment = $last_increment + 1;
+    return  "$dir/${logbase}-${next_increment}";
+
+} #end gen_log_name
+
+
+
+##############################
+##########
+# Mon Sep  7 13:24:26 2009
+# Golden sort sub for use with
+#   '@SORTED_FILE_LIST = sort file_number @FILE_LIST;'
+sub file_number {
+    # a regexp to get the number from a string like '/tmp/foo/foo-87'
+    my $string_then_number_regex = qr{ -(\d+) \z}xmso;
+    ######
+
+    my ($one) = $a =~ m{$string_then_number_regex};
+    my ($two) = $b =~ m{$string_then_number_regex};
+    return  $one <=> $two;
+}
+
+
+##############################
+##########
+# Mon Sep  7 14:21:33 2009
+#
+
+sub get_and_sort_filelist {
+    my $DIR = shift @_;
+    my  $FILE = shift @_;
+
+    # could use a time sorted ls
+    my @FILE_LIST = qx/find $DIR -maxdepth 1 -type f -name "$ {FILE}-*"/;
+    chomp @FILE_LIST;
+    return sort file_number @FILE_LIST;
+}
+
+###############
+###
+## Tue Aug 10 14:37:17 2010
+# try to find a cluster file if we dont have one in the Env
+# sub find_a_cluster_def_file {
+#     # make doube sure we don't have a $main::CLUSTERFILE defined
+#     if (not $main::CLUSTERFILE) {
+#         $main::DEBUG_DUMPER && carp "WARN: No \$CLUSTERFILE defined. Searching....";
+#         my $aref = shift @_;
+#         for my $file (@$aref) {
+#             if (-s $file ) {
+#                 $main::DEBUG_DUMPER && carp "INFO: using $file for CLUSTERFILE";
+#                 return $file;
+#             }
+#             croak "ERROR: Unable to find a jsh cluster file in the ENV or "
+#         }
+#     }
+#     else {
+#        return $main::CLUSTERFILE;
+#     }
+# }  # end sub find a cluster def file.
+######## end of file jsh_no_range_subs ############
+
+
+# @EXCLUDE = qw(foo bar) ; ## TODO ## removethis after debugging is done
+
+
+# my @LIVE_CLUSTERFILES
+#     = grep {
+#         -f $_
+#             and m{\.jsh\z}xms
+#         } @DEFAULT_CLUSTERFILES ;
+
+# my @LIVE_CLUSTERDIRS = grep {
+#     -d $_
+#         and m{ $cluser_dir_end_regex}xms
+#     } @DEFAULT_CLUSTERFILES ;
+
+
+
+# search_for_resource_files(
+#     {
+#         search_paths_aref           =>  \@LIVE_CLUSTERDIRS,
+#         found_resource_files_aref   =>  \@cluster_d_files,
+#     }
+# );
+
+
+# for my $file (@cluster_d_files) {
+#     readclusterfile(
+#         {   lumps        => \%cllumps,
+#             groups       => \%clgroups,
+#             nodes        => \@clnodes,
+#             exclude_aref => \@EXCLUDE,
+#             clusterfile  => $file,
+#         }
+#     ) ;
+# }
+
+
+
+
+# sub db{1;} ; db();
+
+#vv##############################################vv
+# Call like:
+#  search_for_resource_files_aref(
+#       {
+#          search_paths_aref          =>  <value>,
+#          found_resource_files_aref  =>  <value>,
+#       }
+#   );
+# Returns: <add DESCRIPTION and return value here>
+sub search_for_resource_files {
+
+    # get the params that were passed in
+    my $param_href = shift @_ ;
+
+    # get and sort the keys so we can make sure we got what we expected
+    my @passed_in_param = sort keys %{$param_href} ;
+
+    # check that arg lists match
+    # set the parameters for the sub
+    my @param_required = qw(search_paths_aref found_resource_files_aref) ;
+
+    # and sort them
+    @param_required = sort @param_required ;
+
+    # make local vars for them
+    my ( $search_paths_aref, $found_resource_files_aref ) ;
+
+    if ( @param_required == @passed_in_param ) {
+        $search_paths_aref = $param_href->{search_paths_aref} ;
+        $found_resource_files_aref
+            = $param_href->{found_resource_files_aref} ;
+    }    # end if
+    else {
+        croak "ERROR: Missing arguments to sub: ",
+            join( " ", @param_required ) ;
+    }    # end else
+
+    # ======= put local sub vars below here =======
+    # regexs to get what we're after in string like "/usr/local/etc/jsh.d/foo.jsh"
+    my $cluser_file_extension_regex = qr{
+                                            \.   # literal dot
+                                      jsh  # string 'jsh'
+                                      \z   # end of line
+                              }xms ;
+    my $cluser_dir_end_regex = qr  {
+                                       \. # literal dot
+                                       d  # literal 'd'
+                                       \z # at the end of the string
+                               }xms ;
+
+    for my $dir (@$search_paths_aref) {
+        my $this_dir = new IO::Dir($dir);
+        push @$found_resource_files_aref,
+            grep  { $_ = "$dir/$_";
+                -f $_
+                    and m{$cluser_file_extension_regex}xms
+            }  $this_dir->read() ;
+    };
+    wantarray ? return @$found_resource_files_aref : return 1;
+
+}    #end sub search_for_resource_files
+
+#^^##############################################^^
+
+
+
+
+#tron:thansmann> gen_sub_hash_param -s readclusterfile lumps groups nodes exclude_aref clusterfile
+#vv##############################################vv
+# Call like:
+# readclusterfile(
+#     {   lumps        => <value>,
+#         groups       => <value>,
+#         nodes        => <value>,
+#         exclude_aref => <value>,
+#         clusterfile  => <value>,
+#     }
+# ) ;
+
+# Returns: <coder, Fill me in>
+sub readclusterfile {
+
+    # get the params that were passed in
+    my $param_href = shift @_ ;
+
+    # get and sort the keys so we can make sure we got what we expected
+    my @passed_in_param = sort keys %{$param_href} ;
+
+    # check that arg lists match
+    # set the parameters for the sub
+    my @param_required = qw(lumps groups nodes exclude_aref clusterfile) ;
+
+    # and sort them
+    @param_required = sort @param_required ;
+
+    # make local vars for them
+    my ( $lumps, $groups, $nodes, $exclude_aref, $clusterfile ) ;
+
+    if ( @param_required == @passed_in_param ) {
+        $lumps        = $param_href->{lumps} ;
+        $groups       = $param_href->{groups} ;
+        $nodes        = $param_href->{nodes} ;
+        $exclude_aref = $param_href->{exclude_aref} ;
+        $clusterfile  = $param_href->{clusterfile} ;
+    }    # end if
+    else {
+        croak "ERROR: Missing arguments to sub: ",
+            join( " ", @param_required ) ;
+    }    # end else
+
+    # ======= put local sub vars below here =======
+    my $state;
+    my $unit;
+    my $lump_state = 'lump';
+    my $group_state = 'group';
+
+    # regex for indicator we should exclude this entry or range
+    # in the $JSH_CLUSTER file it looks like:
+    # x foo[13-17,19]
+    my $exclued_flag_regexp = qr{\A \s* x \s+ }oxs;
+
+    # read through the clusterfile,
+    # CLUSTERFILE looks like a global here
+    open CLUSTER, $clusterfile || do {
+        carp "ERROR: can not open cluster definition file [$clusterfile] - $!";
+        return ;
+                                   };
+    TOPLOOP: while (<CLUSTER>) {
+        chomp ;
+        next if ( m{^\s*$} || m{^\s*#} ) ;
+
+        my $exclude_me;
+        if ($state eq $lump_state || $state eq $group_state){
+            if (s{$exclued_flag_regexp}{}xms) {
+                $exclude_me = 1;
+            }
+        }
+
+        # is this a lump?
+        if (s/^LUMP:\s*//) {
+            my (@AKA, $lump_unit_addr ) ;
+            # split, even if it's just one name this'll be easier to manage
+            @AKA = split /\s+/, $_;
+            # $unit is 1st name
+            $unit           = shift @AKA ;
+            $state          = $lump_state ;
+            # get a anon array
+            $lumps->{$unit} ||= [] ;
+            if (@AKA) {
+                $lump_unit_addr = $lumps->{$unit};
+                map { $lumps->{$_} = $lump_unit_addr } @AKA;
+
+            }
+
+            next TOPLOOP ;
+        }
+
+        # is this a group?
+        if (s/^GROUP:\s*//) {
+            my (@AKA, $groups_unit_addr ) ;
+            @AKA = split /\s+/, $_;
+            $unit            = shift @AKA ;
+            $state           = $group_state ;
+            $groups->{$unit} ||= [] ;
+            if (@AKA) {
+                $groups_unit_addr = $groups->{$unit};
+                map { $groups->{$_} = $groups_unit_addr } @AKA;
+
+            }
+
+            next TOPLOOP;
+        }
+
+        ####
+        # if we make it here we are defining the elements of a LUMP or GROUP
+        # cleanup spaces in the incoming line.
+        s{#.*$}{};
+        s{\s+}{}xmsg;
+
+
+        # push entry
+        push( @{ $lumps->{$unit} },  $_ ) if ( $state eq $lump_state ) ;
+        next if ( $state eq $lump_state );
+
+        if ( $state eq $lump_state ) {
+            push( @{ $lumps->{$unit} },  $_ ) ;
+            next;
+        }
+
+
+        if ( m{ $paired_sqr_braces }xms ) {
+          $DEBUG_DUMPER and carp "in readclusterfile() expanding $_\n";
+          EXPANDED: for my $expanded_node (get_name_range($_) ){
+               $DEBUG_DUMPER and carp "expanded node: $expanded_node\n";
+               $exclude_me and do {
+                   push @{$exclude_aref}, $expanded_node;
+                   next EXPANDED;
+                   };
+               push( @{ $groups->{$unit} }, $expanded_node ) if ( $state eq $group_state ) ;
+               push( @$nodes, { 'node' => $expanded_node, $group_state => $unit } );
+            }
+        }
+        else {
+            $exclude_me and do {
+                push @{$exclude_aref}, $_;
+                next TOPLOOP;
+                };
+
+            push( @{ $groups->{$unit} }, $_ ) if ( $state eq $group_state ) ;
+            push( @$nodes, { 'node' => $_, $group_state => $unit } );
+        }
+    } # end TOPLOOP:
+    # close the file
+    close CLUSTER ;
+    # do the right thing with exclude lists Mon Aug 17 21:44:06 2009 -T
+    # if the exclude has any elements
+    if ( $#$exclude_aref) {
+        my (@remove_list, @expanded_exclude_list);
+
+        for  (@{$exclude_aref}) {
+            if (defined $groups->{$_}) {
+                # push the group on a holding arrary
+                push @expanded_exclude_list, @{$groups->{$_}};
+                # undef the value we just replaced
+                $_ = '';
+
+            }
+        }
+        # push all the groups we captured onto the exculde list. -T
+        push @$exclude_aref, @expanded_exclude_list;
+
+    }
+   $DEBUG_DUMPER and carp Dumper(\$groups);
+
+
+}    #end sub readclusterfile
+
+#^^##############################################^^
+######## end of file clusterfile_frag ############
+#my $paired_sqr_braces = qr{\[ .* \] }xms;
+
+##############################
+##########
+# Sun Jun 14 20:41:51 2009
+# Was written to handle the case where you have a string like:
+# "foo[1,45-49],bar8,baz[19-30]" and split on commas iff it's not between sqr braces.
+sub split_comma_outside_square_braces {
+    my ($word,
+        $in_braces,
+        $line_with_range,
+        @hold,
+        @char_array,
+    );
+    $line_with_range  = shift @_;
+
+    # split down to one char per element so we can work on it.
+    @char_array = split //, $line_with_range;
+
+    # iff we are between braces, add the comma to the word, else it is an element sperator
+  COMMA: for my $char (@char_array) {
+        if ($char =~ m{ \[ }xms) {
+            $in_braces = 1;
+        }
+
+        if ($char =~ m{ \] }xms) {
+            $in_braces = 0;
+        }
+        ;
+
+        if ( $char =~ m{ \, }xms && not $in_braces) {
+            push @hold, $word;
+            undef $word;
+            next COMMA;
+        } else {
+            $word .= $char;
+        }
+
+
+    }
+
+    push @hold, $word;
+    undef $word;
+    return @hold;
+}                               # end sub
+
+
+
+
+
+##############################
+##########
+# Sun Jun 14 09:01:27 2009
+
+# takes a range string "foo[23,89]" or "bar[34-50]" or "baz[1..7]" or
+# "flurgle[1-5,9,15]" or any combo.
+#
+# errors out with a useful error message if there are illegal chars in the range.
+
+# example: get_name_range("foo[45-55,13,17,1-5,20..22]");
+# returns: foo45 foo46 foo47 foo48 foo49 foo50 foo51 foo52 foo53 foo54 foo55 foo13 foo17 foo1 foo2 foo3 foo4 foo5 foo20 foo21 foo22
+
+# bugs & quirks:
+# ] an arguement like "foo[45-90][12-44]" ignores
+# everything after the first set of sqr braces.
+# ] the is uniquified and sorted.
+
+sub get_name_range {
+    my $name_and_range = shift @_;
+    my ($name, $range,$tail);
+    my @expanded_name_range;
+    my @bad_chars;
+    my %seen;
+    my $junk;
+    #############
+    # the intention is to check the range stuff and make sure only
+    # these chars can get through: digit, dot or comma.
+    my $illegal_chars_regexp = qr{
+                                  [^\d \. \, \w ]
+                              }sxo; # if you add 'm' if fails -Tony Sun Jun 21 14:12:55 2009
+
+    ############
+    # clean up the name and range stuff
+    $name_and_range =~ s{\s+}{}g;
+    #strip the name from the range
+    ($name, $range) = split q{\[}, $name_and_range;
+#    ($name, $range,$tail) =  $name_and_range =~ m{\A (\D*) \[ (.*) \] (.*) \z}xms;
+    ($junk, $tail) =  split q{\]}, $name_and_range;
+    # clear off the trailing sqr brace
+    $range =~ s{\].* \z}{}xms;
+    # covert any dashs laying around to two dots.
+    $range =~ s{\-}{\.\.}xmsg;
+
+    # must not have any chars except the ones defined in the regexp
+    # if we match any illegal chars we cant go on.
+    if (@bad_chars = $range =~ m{($illegal_chars_regexp)}g ) {
+
+        warn "The range regex $illegal_chars_regexp matched illegal char(s)"
+            , " in range $name_and_range \n"
+                , "\toffending chars are: [ ", join " ", @bad_chars, "]\n";
+
+    }
+    else {
+
+        # push the name and number together into a string
+        push @expanded_name_range,
+            map {
+                "$name" . $_ . "$tail" # put the name and range element back together ie the first foo[2..6] is foo2
+            }
+                #if $range has leading zeros, expand the char range, else
+            expand_char_range($range) ;
+
+        # do a unique option to clean up overlap
+        my @uniqed = grep !$seen{$_}++, @expanded_name_range;
+        #return sort @uniqed;
+    }
+
+}
+
+
+
+##############################
+##########
+# Sat Jun 20 17:41:48 2009
+# handles the case where its foo[003-008] # leading zeros usually break things.
+# "a..c,009-011,1,099-100,67-69" will get
+# fooa                    foob                    fooc
+# foo009                  foo010                  foo011
+# foo1                    foo099                  foo100
+# foo67                   foo68                   foo69
+sub expand_char_range {
+    my $range_string;
+
+    $range_string = shift @_;
+    my @expanded_elements;
+
+    my $first_char_is_zero_or_atoz_re = qr{ \A [0] }xso;
+
+    # in case we have a commas just handle it normally
+    my @char_ranges = split /,/, $range_string;
+   $DEBUG_DUMPER and  warn "range_string: $range_string : \@char_ranges: ", Dumper (\@char_ranges);
+
+
+    # need to know if it numeric or char
+    # need to know if its '0' or '0\d+'
+
+
+
+
+  CHAR_RANGE: for my $char_range (@char_ranges) {
+        ## if this is a singelton, push onto array and next
+        $char_range !~ m{\.\.} and do { push @expanded_elements, $char_range; next CHAR_RANGE;};
+        my @range_element =  $char_range =~ m{ \A    # beginning of the line
+                                               (\w+) # capture a alphanumeric
+                                               (?:   # start a non-element returing group
+                                                   \.\. # two literal dots
+                                                   (\w+) # another alphanumeric
+                                               )?       # make the second part optional
+                                         }xms ; ##TODO fixing this up for
+
+    # to handle all reasonalbe combos of range operators we have to do some checking.
+    # if the leading char of range is 0 (zero) or a letter - they have to be expanded
+    # differently. -T Sun Jun 21 14:39:08 2009
+
+        # has a zero then at least 1 other digit
+        my $has_leading_zero = $range_element[0] =~ m{\A 0\d+}xs;
+        # has one or more chars
+        my $is_char = $range_element[0] =~ m{\A \D+}xs;
+        # a..f and 00..99 have to be handled as strings.
+        if ( $has_leading_zero || $is_char ) {
+
+            # make sure the ranges are padding the same length. ie 003..4567 is illegal.
+             if (length $range_element[0] == length $range_element[-1]) {
+                $DEBUG_DUMPER and warn "GOOD: this is a valid range: $char_range\n";
+                # CORRECT way, below is a very bad way.
+                push @expanded_elements, ("$range_element[0]".."$range_element[-1]");
+                # found this bad thing after 2 years! really dumb way
+                # to do this. -T Wed May  4 21:46:18 2011
+
+                #while string-wise lessthan-or-equal to
+                # each other while ( $range_element[0] le
+                # $range_element[-1] ) {
+                #     # collect the elements and increment to the next one.
+                #     push @expanded_elements, $range_element[0]++;
+                # }
+            }
+             else {
+                warn "WARN: char range [ $char_range ] dont have equal fields\n";
+            }
+        }
+        else {
+            # if this is normal range of numbers just eval them norallmy
+            $DEBUG_DUMPER and warn "evalling char range $char_range: ", Dumper (eval $char_range);
+            # for some reason, its not expanding for "a..b" -T Sun Jun 21 18:10:15 2009
+
+            push @expanded_elements, eval $char_range;
+        }
+
+    }
+    $DEBUG_DUMPER and warn "\@expanded_elements: ", Dumper (\@expanded_elements);
+
+    return @expanded_elements;
+}
+
+#end sub
+
+
+
+#############
+# expand @NODES and @EXCLUDE with args like " -w moz[90-91] -w bar[34-45,1],baz"
+# so they come out like:
+# moz90   moz91   bar1    bar34   bar35   bar36
+# bar37   bar38   bar39   bar40   bar41   bar42
+# bar43   bar44   bar45   baz
+sub expand_nodes_with_regions {
+
+for my $arref (@_) {
+    my @tmp; # just an area to run string thru
+    my @hold_list; # gets assigned to array ref when were done
+    for (@$arref) {
+
+        if ( m{ $paired_sqr_braces }xms) {
+            push @tmp, split_comma_outside_square_braces("$_");
+            for (@tmp) {
+                if (  m{ $paired_sqr_braces }xms  ) {
+                    # has sqr braces, needs special handeling
+                    push @hold_list, get_name_range($_);
+                } else {
+                    # plain no brace name.
+                    push @hold_list, $_;
+                }
+            }
+        }
+        else {
+            # if no paired braces treat normally.
+            push @hold_list, split( /,/,  $_ )  ;
+        }
+    }
+    # assign the expanded @hold_list to the original array
+    @$arref = @hold_list;
+}
+
+} # end sub expand_nodes_with_regions
+######## end of file range_subs.pm ############

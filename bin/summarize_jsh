@@ -1,0 +1,630 @@
+#!/usr/bin/perl
+# Author: Tony Hansmann
+#
+use Text::Wrap;
+$Text::Wrap::columns = 78;
+use List::Util qw(first);
+
+use diagnostics;
+use strict;
+# use Carp;
+# use POSIX;
+# use Data::Dumper;
+use Getopt::Long qw(:config bundling) ;
+
+my $NO_RANGE;
+
+my $CUT_PASTE_FORMAT ;
+my $DELIMITER ;
+my $HELP ;
+
+my @comments;
+my @host_array ;
+my @master_hosts ;
+
+
+my %by_host ;
+my %by_return ;
+my %host_seen_check ;
+
+
+my $default_host_vs_return_delimiter = qr{:};
+my $host_vs_return_delimiter ;
+
+GetOptions(
+    'help|h|?'        => \$HELP,
+    'no-range|n'      => \$NO_RANGE,
+    'paste|p'         => \$CUT_PASTE_FORMAT,
+    'delimiter|d'     => \$DELIMITER,
+    ) ;
+
+$DELIMITER
+    ? $host_vs_return_delimiter = $DELIMITER
+    : $host_vs_return_delimiter = $default_host_vs_return_delimiter;
+
+
+my $jsh_comment_start = quotemeta('#' x 6);
+
+while (<>) {
+    chomp;
+    if (m{ $jsh_comment_start }xms) {
+        push @comments, $_;
+        next;
+    }
+    next if $_ eq ''; #
+    # limit the split to 2
+    my ($host, $shell_return) = split /$host_vs_return_delimiter/, $_, 2;
+
+    $shell_return =~ s{\A \s+}{}xms;
+
+    # have to push collect all the output by host before
+    # it can be reversed and keyed by output
+    push @{ $by_host{$host} }, $shell_return;
+
+
+    # get a master list of hosts in order - could use List::MoreUtils
+    # uniq to do this too.
+    $host_seen_check{$host}++;
+    if ( $host_seen_check{$host} == 1 ) {
+        push @master_hosts, $host;
+
+    }
+} # end file read
+
+# do the filp - make a hash who's keys are the output
+# and values are the hosts that have the same output.
+for (@master_hosts) {
+    my $key = join( "\n", @{$by_host{$_}} );
+    push @{ $by_return{$key} }, $_;
+}
+
+
+#my @range_arr = Range_Simple::list_cook_down(\@master_hosts);
+
+print join("\n", @comments), "\n";
+my $total_host_seen;
+my $response_count;
+for my $unique_result (sort keys %by_return) {
+    
+    my $space_pad = " " x 4;
+
+        #  my $top_line = "vv" . '-' x 76 . "vv" . "\n";
+        #  my $bottom_line = "^^" . '-' x 76 . "^^" . "\n" ;
+    my $host_header = "host summary [count " .  scalar @{ $by_return{$unique_result} } . "]:\n";
+    
+        # make a box so it's easier to tell what goes with what
+        my $top_line    = "v" x 80 . "\n";
+        my $bottom_line = "^" x 80  ."\n" ;
+        my $SEP = "\n";
+
+        print "$top_line" ,"$unique_result\n\n";
+            if ($NO_RANGE) {
+                @host_array = @{ $by_return{$unique_result} };
+
+                $total_host_seen += scalar @host_array;
+                print fill( $space_pad,
+                     ' ' x ( length($space_pad) + length($host_header) )
+                     , $host_header
+                     , @host_array  );
+            }
+        else {
+            @host_array = Range_Simple::list_cook_down( $by_return{$unique_result});
+            $total_host_seen += scalar @host_array;
+            if ($CUT_PASTE_FORMAT) {
+                $SEP = ',';
+            }
+            print  $host_header, join("$SEP", @host_array);
+        }
+
+        print "\n", "$bottom_line" , "\n";
+
+    }
+
+print "### [ "
+    , scalar keys %by_return
+    , " ] unique responses from [ " . scalar @master_hosts . " ] hosts\n";
+
+# for debug work so the script doesnt run off the end
+# dbe;
+sub dbe {
+    warn "ending";
+}
+
+
+# Author: Tony Hansmann
+# this package will be replaced by String::Range in Q4 2010 -T
+package Range_Simple;
+
+use Data::Dumper;
+use Exporter 'import'; # gives you Exporter's import() method directly
+my @EXPORT_OK = qw(number_rangify number_rangify2 sort_and_uniquify list_cook_down);
+
+
+use strict;
+use Carp;
+
+
+###### make this the main worker function -T Sat May  8 11:01:09 2010
+
+##### b Range_Simple::list_cook_down
+sub list_cook_down {
+
+    # regexp to test for leading zero
+    my $grab_leading_zeros_regexp = qr{ \A (0+) }xos;
+
+    # steming, get 3 values: all non-digits, then all digits, then the tail
+
+
+
+    my $stem_and_number_regexp = qr{(\D+)(\d+)? (\D+)? }xso;
+    my $DEBUG = 0;
+
+    # want to check here for strings we can't rangify -T Tue Oct 19 13:30:23 2010
+
+    my @return_arr;
+    my @unprocessed_return_array ;
+    my $list_aref = shift @_;
+    my %h;
+
+    for (@{$list_aref}) {
+        chomp;
+        # skip blank lines
+        next if m{^$}xms;
+        my $digit_group_count = count_digit_groups($_) ;
+
+        if ( $digit_group_count != 1 ) { # we can only do one right now. -T Tue Oct 19 13:43:12 2010
+            push @unprocessed_return_array, $_;
+            next
+        }
+        else {
+            my $zero_pad;
+            # make sure these get a value 
+            my ($stem, $number, $tail) = ('', '', '');
+            ($stem, $number, $tail) = m{$stem_and_number_regexp};
+
+
+            # take values like foo-93-prod and make the hash key 'foo-&-prod'
+
+            my $key = $stem
+                . q{&}
+                    . ($tail ? $tail : ''); # ugly test to quite strict -T
+            $DEBUG && print "key: $key :: number [ $number ]\n";
+            if ($number) {
+                if ($number =~ m{$grab_leading_zeros_regexp}xso) {
+                    push @{ $h{$key}{'zero_padded_range'}{length $number} }, $number;
+                } else {
+                    push @{ $h{$key}{'range'}{length $number} }, $number;
+                }
+            } else {
+                # line with no number in it.
+                $h{$key}{'no_number'}++;
+            }
+        } # end else
+    }                       # end of for (@{$list_aref})
+
+        $DEBUG && print "The entire hash: ", Dumper(\%h);
+
+
+        for my $key (sort keys %h) {
+            my($stem,$tail) = split q{&}, $key;
+            my $range_output_string;
+            my @range_string;
+            my $leading_zero_hashref = \$h{$key}{'zero_padded_range'};
+            my $non_leading_zero_hashref = \$h{$key}{'range'};
+    
+            my %zz;
+            # make %zz and unique key'd list of digit ranges 
+            map {  $zz{$_}++ }  keys  %{ $$leading_zero_hashref }, keys  %{ $$non_leading_zero_hashref };
+            my @all_widths = sort { $a <=> $b } keys %zz;
+    
+            # # cation double deref here -T Sun Sep 20 17:17:05 2009
+            for my $width (@all_widths) {
+                push @range_string, join(q{,}
+                                             , scalar  Range_Simple::number_rangify(
+                                                 @{$$leading_zero_hashref->{$width}},
+                                                 @{$$non_leading_zero_hashref->{$width}}
+                                             )
+                                         ); # end join
+            }    
+
+            if ($h{$key}{'no_number'}) {
+                push @return_arr, , $stem . $tail;
+                # print "$stem" . "$tail" . "\n";
+            }
+
+            if (@range_string) {
+                push @return_arr, "${stem}"
+                    . "["
+                        . join(q{,} , @range_string)
+                            . "]"
+                                . "$tail";
+
+
+            }
+        } # end for my $key(sort keys %h)
+
+
+    if (@unprocessed_return_array) {
+        push @return_arr, sort @unprocessed_return_array;
+    }
+    return wantarray ? @return_arr : join(' ', @return_arr);
+}                       # end list_cook down sub
+## not cleaned up yet Sat May  8 10:59:24 2010
+###### 
+
+
+
+
+sub test_rangify {
+    # sorted right now - will have to do that in the future
+    # will need to uniquifed too
+    my @a = qw(777 22 666 0 1 2 23 555 9993 5 888 7 8 10 24 444 14 15 16 20 21 889 890 44 77 88 99 111 222 33 25 333 );
+
+    print "raw range:\n", join(' ', @a), "\n";
+    my @b = sort_and_uniquify(@a);
+    print "sorted uniqrange:\n", join(' ', @b), "\n";
+    my @cooked_ranges = number_rangify(@b);
+    print scalar number_rangify(@b), "\n";
+}
+
+
+##############################
+##########
+# Sun Sep 20 10:07:48 2009
+#
+sub sort_and_uniquify {
+    my @messy_numbers = @_;
+    my %unique_key;
+    my @sorted_uniquified_numbers;
+    my @AA;
+    for (@messy_numbers) {
+        $unique_key{$_}++;
+    }
+    @sorted_uniquified_numbers = sort { $a <=> $b} keys %unique_key;
+
+    map { push @{$AA[length $_]}, $_ } @sorted_uniquified_numbers;
+
+    wantarray ? @sorted_uniquified_numbers : join(',',  @sorted_uniquified_numbers);
+
+    
+}
+
+
+sub sort_and_uniquify2 {
+    my @messy_numbers = @_;
+    my %unique_key;
+    my @sorted_uniquified_numbers;
+    my @AA;
+    for (@messy_numbers) {
+        $unique_key{$_}++;
+    }
+    @sorted_uniquified_numbers = sort { $a <=> $b} keys %unique_key;
+
+    map { push @{$AA[length $_]}, $_ } @sorted_uniquified_numbers;
+
+    return \@AA;
+
+    
+}
+
+##############################
+##########
+# Sun Sep 20 10:01:16 2009
+# reduce a list of numbers to a single range string
+#
+sub number_rangify2 {
+    my $AA_arref  = sort_and_uniquify2(@_);
+    my @cooked_ranges;
+    my ($last, $run);
+    my %range_struct;
+
+
+    # i dont know how to get the last index for an array ref...
+    # doing it the bflt way. -t Sun Sep 20 18:15:53 2009
+OUTTER:  for my $index (0 .. (scalar @{$AA_arref} -1) ) {
+        my $MM = $AA_arref->[$index];
+        my  @sorted_uniquified_numbers = @$MM;
+
+        INNER: for my $current (@sorted_uniquified_numbers) {
+                # the list has to be sorted lowest-to-highest - error out if not;
+                croak if $last > $current;
+
+                # if $last is not defined its our first time thru, set everything
+                if (! $last) {
+                    push @{ $range_struct{$current} }, $current;
+                    $last = $run = $current;
+                    next INNER;
+                }
+
+                # if next in the sequence add it to our run
+                if ($current == ( 1 + $last) ) {
+                    push @{ $range_struct{$run} }, $current;
+                    $last = $current;
+                }
+                # else start a new run
+                else {
+                    push @{ $range_struct{$current} }, $current;
+                    $last = $run = $current;
+                    next INNER;
+                }
+            }
+
+        for my $r ( sort {$a <=> $b } keys %range_struct) {
+            if ($r == $range_struct{$r}->[-1]) {
+                push @cooked_ranges,  "$r" ;
+            } else {
+                push @cooked_ranges,  "$r" . "-" . "$range_struct{$r}->[-1]";
+            }
+
+        }
+    }
+    wantarray ? @cooked_ranges : join(',', @cooked_ranges);
+}                               # end sub number_rangify
+
+
+
+##############################
+##########
+# Sun Sep 20 10:01:16 2009
+# reduce a list of numbers to a single range string
+#
+sub number_rangify {
+    my @sorted_uniquified_numbers = sort_and_uniquify(@_);
+    my @cooked_ranges;
+    # set default value - ranges coming in are all positive integers
+    my ($last, $run) = (-1,-1);
+    my %range_struct;
+    for my $current (@sorted_uniquified_numbers) {
+        # the list has to be sorted lowest-to-highest - error out if not;
+        croak if $last > $current;
+
+        # if $last is not defined its our first time thru, set everything
+        if (! $last) {
+            push @{ $range_struct{$current} }, $current;
+            $last = $run = $current;
+            next;
+        }
+
+        # if next in the sequence add it to our run
+        if ($current == ( 1 + $last) ) {
+            push @{ $range_struct{$run} }, $current;
+            $last = $current;
+        }
+        # else start a new run
+        else {
+            push @{ $range_struct{$current} }, $current;
+            $last = $run = $current;
+            next;
+        }
+    }
+
+    for my $r ( sort {$a <=> $b } keys %range_struct) {
+        if ($r == $range_struct{$r}->[-1]) {
+            push @cooked_ranges,  "$r" ;
+        } else {
+            push @cooked_ranges,  "$r" . "-" . "$range_struct{$r}->[-1]";
+        }
+
+    }
+    wantarray ? @cooked_ranges : join(',', @cooked_ranges);
+} # end sub number_rangify
+
+
+
+## TODO fix this so 
+sub count_digit_groups {
+    my @incoming_list = @_;
+    my %unique_sigs;
+    my @numbers;
+    for my $string ( @incoming_list) {
+
+        chomp;
+        # ## dont use this --> my @on_boundry_split = split qr{\b} , $string;
+        # hack to get the split to work right - it puts in null
+        # values, the grep strips them out
+        my @on_boundry_split = grep { m{.}xms } split qr{(\b|_)} , $string;
+        # spliting on \b boundaries will  leave a string with a number
+        # handle the case like: p1-09-a
+        if ($on_boundry_split[0] =~ m{\d} ) {
+            my $first = shift @on_boundry_split;
+            # get the alpha chars split from the digits
+            my @j = $first =~ m{\A (\D+)? (\d+)}xms;
+            # put it back together so the array is correct
+            unshift @on_boundry_split, @j;
+        }
+
+        # this array gets push on the record so we can go down the list
+        # and match them up again to rebuild the list
+        # it looks weird on a dump, but works because we always match
+        # strings with the same stem, digit group count, and seperators.
+        @numbers = $string =~ m{ (\d+) }xmsg;
+
+
+        # NOTE - this block must have been an test - i don't use its results anywhere.-T
+        # go through the string and create a signiture
+        # my $sig_accumulator;
+        # my @R;
+        # for (0..$#on_boundry_split) {
+        #     # if we have non-digit data
+        #     if ($on_boundry_split[$_] =~ m{\D}xms ) {
+        #         #acculmate the sig
+        #         $sig_accumulator .= $on_boundry_split[$_]
+        #     }
+        #     else {
+        #         $sig_accumulator and push @R, $sig_accumulator; undef $sig_accumulator;
+        #     }
+        # }
+        # #     print "a line like [$string] can be broken down to the stem and seperator chars\n";
+        # #     print join( " :: ", @R), "\n";
+
+        my $line_to_checksum;
+    
+        my @copy_of_split = @on_boundry_split;
+        # replace any digitgroups with zero as a place holder for the signature
+        for my $i (0..$#copy_of_split) {
+            if ($copy_of_split[$i] =~ m{\A \d+ \z}xms) {
+                $copy_of_split[$i] = 0;
+            }
+        }
+
+        ##############################
+        ##########
+        # Sun Feb 21 12:13:37 2010
+        # why did i use freeze here?
+        #    my $froze = freeze(\@copy_of_split);
+        my $this_sig = join '', @copy_of_split; 
+
+        ## todo - instead of all of this i can just rip this apart here with col_struct_helper
+    
+        exists $unique_sigs{$this_sig}{sig}
+            || do { $unique_sigs{$this_sig}{sig} = $this_sig; };
+
+        push @{$unique_sigs{$this_sig}{numbers} }, [ @numbers ];
+        exists $unique_sigs{$this_sig}{digit_group_count}
+            || do { $unique_sigs{$this_sig}{digit_group_count} = scalar @numbers; };
+        push @{$unique_sigs{$this_sig}{strings} }, $string;
+
+        #capture the break format
+        exists $unique_sigs{$this_sig}{sig_elements}
+            || do { push @{$unique_sigs{$this_sig}{sig_elements}}, @on_boundry_split ; };
+
+    }                           # the loop over input.
+
+    return scalar @numbers;
+}                               # end sub make_sig_hash
+
+
+
+1;
+
+
+__END__
+
+# $Header: /home/thansmann/src/jsh_work/RCS/summarize_jsh,v 1.4 2010/10/20 22:18:58 thansmann Exp $
+# $Author: thansmann $
+# $Date: 2010/10/20 22:18:58 $
+#
+# $Log: summarize_jsh,v $
+# Revision 1.4  2010/10/20 22:18:58  thansmann
+# -checking in before doing: auto_ci auto_ci auto-checkin
+#
+# Revision 1.1  2010/10/17 23:01:23  thansmann
+# Initial revision
+#
+# Revision 1.1  2010/05/09 20:29:04  thansmann
+# Initial revision
+# $cc$
+
+
+
+
+
+
+=pod
+
+Complex data structure to represent the type of things you see
+in human generated lists.
+
+I'm trying to solve cases where an org start a naming scheme like
+foo-1, foo-2...foo-36 and then decides to move to foo-00037.... Which
+is what my org did.
+
+This will allow you to represent any stem and tail combo with any
+wonky numbering system between and can cope with it when someone
+changes it on the fly.
+
+bar-[1-3,01-03,001-003]-baz
+foo-[9-11]
+The %h hash: {
+   'bar-&-baz' => {
+        'zero_padded_range' => {
+                     '3' => [
+                              '001',
+                              '002',
+                              '003'
+                            ],
+                     '2' => [
+                              '01',
+                              '02',
+                              '03'
+                            ]
+                   },
+        'range' => {
+                     '1' => [
+                              '1',
+                              '2',
+                              '3'
+                            ]
+                   }
+      },
+   'foo-&' => {
+           'range' => {
+                   '1' => [
+                            '9'
+                          ],
+                   '2' => [
+                            '10',
+                            '11'
+                          ]
+                      }
+         }
+      };
+
+
+
+Also covers the case like "uru, uru2..."
+The entire hash: $VAR1 = {
+          'uru&' => {
+                      'no_number' => 1,
+                      'range' => {
+                                   '1' => [
+                                            '2'
+                                          ]
+                                 }
+                    }
+        };
+
+
+
+
+=cut
+
+
+# =pod
+
+# =head1 NAME
+
+# =head1 SYNOPSIS 
+
+# =head1 DESCRIPTION
+
+# =head1 OPTIONS  
+
+# =head1 RETURN VALUE
+
+# =head1 ERRORS
+
+# =head1 EXAMPLES  
+
+# =head1 ENVIRONMENT
+
+# =head1 FILES     
+
+# =head1 SEE ALSO  
+
+# =head1 NOTES     
+
+# =head1 CAVEATS   
+
+# =head1 DIAGNOSTICS
+
+# =head1 BUGS
+
+# =head1 RESTRICTIONS
+
+# =head1 AUTHOR 
+
+# =head1 HISTORY 
+
+# =cut
+

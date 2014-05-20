@@ -169,6 +169,10 @@ function btr () {
   bosh tasks recent 15
 }
 
+function bdm () {
+  bosh download manifest $*
+}
+
 function seed_etc_profile (){
   sudo ' echo "function sp () { source $dht/.profile ; }" >> /etc/profile'
 }
@@ -439,6 +443,10 @@ function myip() {
   wget -qO- http://ipecho.net/plain ; echo
 }
 
+function grep_ip(){
+grep -E "(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)" $*
+
+}
 
 function di() {
   bosh -t bosh.dijon.cf-app.com $*
@@ -487,7 +495,7 @@ pushenv () {
 
 
 function att_spiff(){
- bash -x /Users/pivotal/workspace/att_spiffable_template/att_spiff
+ bash -x /Users/pivotal/workspace/att_spiffable_template/bin/att_spiff
 }
 
 function aws_ssh_fingerprint () {
@@ -622,7 +630,7 @@ function migrate_basic_env() {
   if [[ -d ~/workspace/basic-env ]] ; then
     cp -a $dht/{.profile,.screenrc,.tmux.conf} $dht/home_dot_files/.gitconfig ~/workspace/basic-env
     mkdir -p ~/workspace/basic-env/bin
-    cp -a $dht/bin/{ll,llp,lll,pcut,++,nl2.pl,print_between,tree_perms.pl,kibme,next_file_named,show_swapping_procs,llll} ~/workspace/basic-env/bin
+    cp -a $dht/bin/{jsh,summarize_jsh,ll,llp,lll,pcut,++,nl2.pl,print_between,tree_perms.pl,kibme,next_file_named,show_swapping_procs,llll} ~/workspace/basic-env/bin
     git status
   fi
 }
