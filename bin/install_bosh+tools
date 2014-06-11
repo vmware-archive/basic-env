@@ -2,7 +2,7 @@
 # GOLD - nice little ruby script to setup an env
 
 
-things_to_install = {"bundle"=>"gem install bundler", "bosh"=>"gem install bosh_cli", "parallel"=>"curl pi.dk/3/  | bash; echo 'will cite' | ~/bin/parallel --bibtex", "jq"=>" mkdir -p ~/bin/ ; cd ~/bin ;  wget http://stedolan.github.io/jq/download/linux64/jq"}
+things_to_install = {"bundle"=>"gem install bundler", "bosh"=>"gem install bosh_cli", "parallel"=>"curl pi.dk/3/  | bash; echo 'will cite' | ~/bin/parallel --bibtex", "jq"=>" mkdir -p ~/bin/  wget http://stedolan.github.io/jq/download/linux64/jq -O ~/bin/jq"}
 
 things_to_install.each do |k,v|
   m = %x/which #{k}/
