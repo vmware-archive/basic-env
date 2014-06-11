@@ -1,0 +1,9 @@
+#!/bin/bash
+
+TARGET=$1
+
+ssh $1 " git clone https://github.com/thansmann/basic-env.git;
+         cd ~/basic-env;
+         source .profile;
+         new_env"
+         

@@ -621,20 +621,23 @@ function migrate_basic_env() {
   if [[ -d ~/workspace/basic-env ]] ; then
     cp -a $dht/{.profile,.screenrc,.tmux.conf} $dht/home_dot_files/.gitconfig ~/workspace/basic-env
     mkdir -p ~/workspace/basic-env/bin
-    cp -a $dht/bin/{install_bosh+tools,check_ssh_keys,jsh,summarize_jsh,ll,llp,lll,pcut,++,nl2.pl,print_between,tree_perms.pl,kibme,next_file_named,show_swapping_procs,llll} ~/workspace/basic-env/bin
+    cp -a $dht/bin/{push_env,install_bosh+tools,check_ssh_keys,jsh,summarize_jsh,ll,llp,lll,pcut,++,nl2.pl,print_between,tree_perms.pl,kibme,next_file_named,show_swapping_procs,llll} ~/workspace/basic-env/bin
     git status
   fi
 }
 
 function new_env() {
   echo "do setup for a new env"
-  cd ; install -t ~/bin ~/basic-env/bin/*
+  cd ; mkdir ~/bin ; install -t ~/bin ~/basic-env/bin/*
   cd ; ln -svf ~/basic-env/.profile .profile
   cd ; ln -svf ~/basic-env/.screenrc .screenrc
   cd ; ln -svf ~/basic-env/.tmux.conf .tmux.conf
   cd bin ; ./nl2.pl --egg| xargs -I {} bash -c '{}'
   cd ; ~/bin/install_bosh+tools
 }
+
+
+
 
 function gc() {
   pushd ~/workspace
