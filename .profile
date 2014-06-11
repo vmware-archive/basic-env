@@ -622,7 +622,7 @@ function migrate_basic_env() {
     cp -a $dht/{.profile,.screenrc,.tmux.conf} $dht/home_dot_files/.gitconfig ~/workspace/basic-env
     mkdir -p ~/workspace/basic-env/bin
     cp -a $dht/bin/{push_env,install_bosh+tools,check_ssh_keys,jsh,summarize_jsh,ll,llp,lll,pcut,++,nl2.pl,print_between,tree_perms.pl,kibme,next_file_named,show_swapping_procs,llll} ~/workspace/basic-env/bin
-    git status
+    git commit -a --cleanup=strip -v
   fi
 }
 
