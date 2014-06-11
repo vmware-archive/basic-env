@@ -3,10 +3,10 @@
 
 
 things_to_install = {
-  "bundle"=>"gem install bundler",
-  "bosh"=>"gem install bosh_cli",
   "parallel"=>"mkdir ~/tmp; curl pi.dk/3/ | bash ; echo 'will cite' | ~/bin/parallel --bibtex",
   "jq"=>" mkdir -p ~/bin/;  wget http://stedolan.github.io/jq/download/linux64/jq -O ~/bin/jq",
+  "bundle"=>"gem install bundler",
+  "bosh"=>"gem install bosh_cli",
   }
 
 
