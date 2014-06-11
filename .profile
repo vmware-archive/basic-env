@@ -6,7 +6,7 @@ git config --global --add alias.lol "log --graph --decorate --pretty=oneline --a
 complete -C /Users/pivotal/.local/lib/aws/bin/aws_completer aws
 
 #chruby ruby-1.9.3-p448
-export JAVA_HOME=`/usr/libexec/java_home -v 1.6`
+[ -x /usr/libexec/java_home ] && export JAVA_HOME=`/usr/libexec/java_home -v 1.6`
 export maj=cetas-dev-majestic
 export w="$HOME/workspace"
 export wda="$HOME/workspace/deployments-aws"
@@ -26,6 +26,7 @@ done
 export jb=jb.run.pivotal.io
 export staging=jb.staging.cf-app.com
 
+
 alias att='cd ~/workspace/att_spiffable_template'
 alias gti='git'
 alias ll='ls -alrt'
@@ -38,10 +39,8 @@ alias wb="cd $HOME/workspace/bosh"
 alias wt="cd $HOME/workspace/tools"
 alias wp="cd $HOME/workspace/prod-aws"
 alias wy="cd $HOME/workspace/vcap-yeti"
-alias vp='vim $HOME/Dropbox/home/thansmann/.profile'
 alias dht='cd $HOME/Dropbox/home/thansmann'
 alias d='cd $HOME/Dropbox'
-alias sp='. $HOME/Dropbox/home/thansmann/.profile'
 alias b='bundle '
 alias bundel='bundle '
 alias x='echo '
@@ -69,6 +68,27 @@ alias btrn='bosh tasks recent 50 --no-filter'
 alias gpp='git pull --rebase && git push'
 alias gppom='git pull --rebase && git push origin master'
 alias gst='git status'
+
+
+function sp(){
+    if [ -f $dht/.profile ] ; then
+        source $dht/.profile
+    else
+        source ~/.profile
+    fi
+
+}
+
+
+function vp(){
+    if [ -f $dht/.profile ] ; then
+        vi $dht/.profile
+    else
+        vi ~/.profile
+    fi
+
+}
+
 
 
 function be() {
@@ -262,35 +282,6 @@ function D () {
     date +%F
 }
 
-#
-function check_ssh_keys() {
-  ssh-add -D
-  if [[ $(date +%H) -le 18 ]]
-    then
-      SEC_TO_6PM=$(echo "(19 - $(date +%H)) * 3600"  |bc)
-    else
-      SEC_TO_6PM=$(echo "2 * 3600"  |bc)
-  fi
-  # Mon Apr 23 17:37:04 2012 setup for vmware
-    for i in $HOME/workspace/prod-aws/keys/id_rsa_thansmann $dht/.ssh/gerrit_id_rsa $HOME/workspace/prod-keys/id_rsa_thansmann ; do
-      if [[ -f $i ]]
-        then
-          chmod 400 $i
-          ssh-add -t $SEC_TO_6PM $i
-        else
-          echo "Could not find: $i"
-      fi
-  done
-  unset i
-  ssh-add -ls
-}
-
-function kc () {
-    keychain
-    . ~/.keychain/*-sh
-    check_ssh_keys
-}
-
 function space2slash_s_+() {
  perl -pe 's{\s+}{\\s+}g; print "\n"'
 }
@@ -390,7 +381,7 @@ function bo {
 }
 
 function fcd {
-  cd $(dirname $1) 
+  cd $(dirname $1)
 }
 
 function jb() {
@@ -509,9 +500,9 @@ function aws_ssh_fingerprint () {
 # got tired of making up tmp file names.
 # get a tmpfile with your userid in it so there's no collisions
 # theres a cleanvt fuction to so you can clear them easily.
-# after you run this the '$f' var has the file you just edited for easy 
+# after you run this the '$f' var has the file you just edited for easy
 # recall - i wrote for this idiom:
-# vi a tmp file, paste some junk, then "grep foo $f" 
+# vi a tmp file, paste some junk, then "grep foo $f"
 function vt () {
       eval `next_file_named -f foo`
       vi $f
@@ -630,7 +621,7 @@ function migrate_basic_env() {
   if [[ -d ~/workspace/basic-env ]] ; then
     cp -a $dht/{.profile,.screenrc,.tmux.conf} $dht/home_dot_files/.gitconfig ~/workspace/basic-env
     mkdir -p ~/workspace/basic-env/bin
-    cp -a $dht/bin/{jsh,summarize_jsh,ll,llp,lll,pcut,++,nl2.pl,print_between,tree_perms.pl,kibme,next_file_named,show_swapping_procs,llll} ~/workspace/basic-env/bin
+    cp -a $dht/bin/{install_bosh+tools,check_ssh_keys,jsh,summarize_jsh,ll,llp,lll,pcut,++,nl2.pl,print_between,tree_perms.pl,kibme,next_file_named,show_swapping_procs,llll} ~/workspace/basic-env/bin
     git status
   fi
 }
@@ -642,6 +633,7 @@ function new_env() {
   cd ; ln -svf ~/basic-env/.screenrc .screenrc
   cd ; ln -svf ~/basic-env/.tmux.conf .tmux.conf
   cd bin ; ./nl2.pl --egg| xargs -I {} bash -c '{}'
+  cd ; ~/bin/install_bosh+tools
 }
 
 function gc() {
@@ -656,4 +648,21 @@ function gc() {
 function tt() {
 f
 $* | tee $f
+}
+
+
+function gerrit_key() {
+    (ssh-add -l | grep -q d7:85:17:1d:75:8b:f2:87:41:0c:10:91:93:88:6e:fb ) || ssh-add /Users/pivotal/Dropbox/home/thansmann/.ssh/gerrit_id_rsa
+
+}
+
+function prod_key() {
+    (ssh-add -l | grep -q 46:82:fd:8a:bd:cb:75:92:43:90:e2:5c:32:b7:05:7b ) || ssh-add /Users/pivotal/workspace/prod-aws/keys/id_rsa_thansmann
+
+}
+
+function sandbox2() {
+    gerrit_key
+    ssh -AL 25555:10.107.0.10:25555 root@12.144.186.145
+
 }
