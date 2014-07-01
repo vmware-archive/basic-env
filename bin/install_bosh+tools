@@ -7,6 +7,7 @@ things_to_install = {
   "jq"=>" mkdir -p ~/bin/;  wget http://stedolan.github.io/jq/download/linux64/jq -O ~/bin/jq",
   "bundle"=>"gem install bundler",
   "bosh"=>"gem install bosh_cli",
+  "ack"=>"curl http://beyondgrep.com/ack-2.12-single-file > ~/bin/ack && chmod 0755 ~/bin/ack",
   }
 
 

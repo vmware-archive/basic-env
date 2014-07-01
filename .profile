@@ -1,9 +1,9 @@
 #. /usr/local/share/chruby/chruby.sh
 
-git config --global --add alias.lol "log --graph --decorate --pretty=oneline --abbrev-commit --all"
-git config --global --add alias.lol "log --graph --decorate --pretty=oneline --abbrev-commit --all"
+(git config -l|grep -q alias.lol) || git config --global --add alias.lol "log --graph --decorate --pretty=oneline --abbrev-commit --all"
 
 complete -C /Users/pivotal/.local/lib/aws/bin/aws_completer aws
+export ALT_HOME=~/Dropbox/home/thansmann
 
 #chruby ruby-1.9.3-p448
 [ -x /usr/libexec/java_home ] && export JAVA_HOME=`/usr/libexec/java_home -v 1.6`
@@ -27,7 +27,7 @@ export jb=jb.run.pivotal.io
 export staging=jb.staging.cf-app.com
 
 
-alias att='cd ~/workspace/att_spiffable_template'
+alias att='cd ~/workspace/BDPaaS'
 alias gti='git'
 alias ll='ls -alrt'
 alias w="cd $HOME/workspace"
