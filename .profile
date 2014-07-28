@@ -3,7 +3,7 @@
 (git config -l|grep -q alias.lol) || git config --global --add alias.lol "log --graph --decorate --pretty=oneline --abbrev-commit --all"
 (git config -l|grep -q alias.co) || git config --global --add alias.co "checkout"
 (git config -l|grep -q alias.st) || git config --global --add alias.st "status"
-(git config -l|grep -q alias.ci) || git config --global --add alias.st "duet-commit"
+(git config -l|grep -q alias.ci) || git config --global --add alias.ci "duet-commit"
 
 complete -C /Users/pivotal/.local/lib/aws/bin/aws_completer aws
 export ALT_HOME=~/Dropbox/home/thansmann
