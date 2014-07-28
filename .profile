@@ -553,11 +553,16 @@ function eo () {
 
 function ej () {
       eval `current_file_named -f jsh`
-      vi $o
-      echo $o
+      echo $j
 
 }
 
+function vj () {
+      eval `current_file_named -f jsh`
+      vi $j
+      echo $j
+
+}
 
 function p () {
         eval `next_file_named -f put`
