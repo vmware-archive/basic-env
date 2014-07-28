@@ -1,6 +1,12 @@
 #!/bin/bash
-# Author: Tony Hansmann
-#
+
+abspath() {
+    local DIR=$(dirname "$1")
+    cd $DIR
+    printf "%s/%s\n" "$(pwd)" "$(basename "$1")" | perl -pe 's{/{2,}}{/}g'
+    cd "$OLDPWD"
+}
+
 # often want full path to file(s), this gets it for me
 #hlp print the full path for a file, useful for cutting/pasting
 #hlp usage: lll <filename>
@@ -24,14 +30,14 @@
     # fi
 
     if [ ! -z "$*" ]
-    then        
+    then
     for i in $*
       do
         if [ -f $i  ]
             then
             if (echo $i |egrep -q "^/|\.\./")
             then
-                \ls $i
+                abspath $i
             else
                 \ls $(pwd)/$i
             fi

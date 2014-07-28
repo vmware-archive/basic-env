@@ -1,9 +1,14 @@
 #. /usr/local/share/chruby/chruby.sh
 
 (git config -l|grep -q alias.lol) || git config --global --add alias.lol "log --graph --decorate --pretty=oneline --abbrev-commit --all"
+(git config -l|grep -q alias.co) || git config --global --add alias.co "checkout"
+(git config -l|grep -q alias.st) || git config --global --add alias.st "status"
+(git config -l|grep -q alias.ci) || git config --global --add alias.st "duet-commit"
 
 complete -C /Users/pivotal/.local/lib/aws/bin/aws_completer aws
 export ALT_HOME=~/Dropbox/home/thansmann
+export EDITOR=vi
+echo 'bind status C !git ci' >> ~/.tigrc
 
 #chruby ruby-1.9.3-p448
 [ -x /usr/libexec/java_home ] && export JAVA_HOME=`/usr/libexec/java_home -v 1.6`
@@ -18,6 +23,7 @@ export wp="$HOME/workspace/prod-aws"
 export wt="$HOME/workspace/tools"
 export th_ssh_config="$HOME/Dropbox/home/thansmann/.ssh/config"
 export dht="$HOME/Dropbox/home/thansmann"
+export ssl="/Volumes/Untitled/workspace/ssl_certs"
 
 for path_element in $dht/bin /usr/local/go/bin $HOME/go/bin $EC2_HOME/bin $HOME/bin /usr/local/bin ; do
     [[ -d $path_element ]] && PATH+=":${path_element}"
@@ -68,6 +74,8 @@ alias btrn='bosh tasks recent 50 --no-filter'
 alias gpp='git pull --rebase && git push'
 alias gppom='git pull --rebase && git push origin master'
 alias gst='git status'
+alias pdd='pushd'
+alias pd='popd'
 
 
 function sp(){
@@ -230,9 +238,7 @@ function nats-ads () {
 }
 
 function prod () {
-  ssh-add -D
-  chmod 400 $HOME/workspace/prod-aws/keys/id_rsa_thansmann
-  ssh-add -t 4900 $HOME/workspace/prod-aws/keys/id_rsa_thansmann
+  prod_key
   ssh -A thansmann@jb.run.pivotal.io
 }
 
@@ -628,7 +634,7 @@ function migrate_basic_env() {
 
 function new_env() {
   echo "do setup for a new env"
-  cd ; mkdir ~/bin ; install -t ~/bin ~/basic-env/bin/*
+  cd ; mkdir ~/bin ; install  ~/basic-env/bin/* ~/bin
   cd ; ln -svf ~/basic-env/.profile .profile
   cd ; ln -svf ~/basic-env/.screenrc .screenrc
   cd ; ln -svf ~/basic-env/.tmux.conf .tmux.conf
@@ -668,4 +674,42 @@ function sandbox2() {
     gerrit_key
     ssh -AL 25555:10.107.0.10:25555 root@12.144.186.145
 
+}
+
+
+function ssl() {
+  cd /Volumes/Untitled/workspace/ssl_certs
+  pwd
+}
+
+
+abspath() {
+    local DIR=$(dirname "$1")
+    cd $DIR
+    printf "%s/%s\n" "$(pwd)" "$(basename "$1")" | perl -pe 's{/{2,}}{/}g'
+    cd "$OLDPWD"
+}
+
+
+
+function bosh_env () {
+  THIS_HOST_EXTERNAL_IP=$(curl -s ifconfig.me)
+  case $THIS_HOST_EXTERNAL_IP in
+  54.85.115.27)
+    bosh target micro.run.pivotal.io micro
+    bosh target bosh.run.pivotal.io prod
+    BOSHES="micro prod"
+    ;;
+  *)
+       echo "ERROR: $(basename $0) does not know external IP [${THIS_HOST_EXTERNAL_IP}]"
+    ;;
+   esac
+
+   parallel "echo %%%%%%%%%% {} %%%%%%%%%% ; bosh -t {} deployments" ::: $BOSHES
+
+}
+
+
+function grH () {
+  git reset HEAD $*
 }
