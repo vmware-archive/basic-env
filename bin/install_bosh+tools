@@ -1,6 +1,4 @@
-#!/opt/rubies/1.9.3-p484/bin/ruby
-# GOLD - nice little ruby script to setup an env
-
+#!/usr/bin/env ruby
 
 things_to_install = {
   "parallel"=>"mkdir ~/tmp; curl pi.dk/3/ | bash ; echo 'will cite' | ~/bin/parallel --bibtex",
