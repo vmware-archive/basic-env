@@ -1,4 +1,5 @@
 #!/usr/bin/env ruby
+# GOLD - nice little ruby script to setup an env
 
 things_to_install = {
   "parallel"=>"mkdir ~/tmp; curl pi.dk/3/ | bash ; echo 'will cite' | ~/bin/parallel --bibtex",

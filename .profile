@@ -4,6 +4,8 @@
 (git config -l|grep -q alias.co) || git config --global --add alias.co "checkout"
 (git config -l|grep -q alias.st) || git config --global --add alias.st "status"
 (git config -l|grep -q alias.ci) || git config --global --add alias.ci "duet-commit"
+# set the git credential cache to avoid typing id/pass a bunch of times
+git config --global credential.helper 'cache --timeout 1200'
 
 complete -C /Users/pivotal/.local/lib/aws/bin/aws_completer aws
 export ALT_HOME=~/Dropbox/home/thansmann
@@ -689,6 +691,18 @@ function sandbox2() {
 
 }
 
+function sandbox3() {
+    gerrit_key
+    ssh root@12.144.186.59
+
+}
+
+function stagex() {
+    gerrit_key
+    ssh  root@12.144.186.18
+
+}
+
 
 function ssl() {
   cd /Volumes/Untitled/workspace/ssl_certs
@@ -725,4 +739,10 @@ function bosh_env () {
 
 function grH () {
   git reset HEAD $*
+}
+
+function add_pwd_to_path(){
+echo "Before: $PATH"
+PATH+=":$(pwd)"
+echo "After: $PATH"
 }
