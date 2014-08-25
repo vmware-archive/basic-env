@@ -119,24 +119,6 @@ function known_hosts_kill (){
     > $HOME/.ssh/known_hosts
     }
 
-#  does a source on my profile
-function sp {
-if [[ ! -z "$ALT_HOME" ]] ; then
-  . $ALT_HOME/.profile
-  else
-    . ~/.profile
-fi
-}
-
-# vi my profile
-function vp () {
-if [[ ! -z "$ALT_HOME" ]] ; then
-    vi $ALT_HOME/.profile $ALT_HOME/profile.d/*
-  else
-    vi ~/.profile ~/profile.d/*
-fi
-}
-
 # save me from mistying less
 function le () {
 less $*
