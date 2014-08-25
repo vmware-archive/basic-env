@@ -789,20 +789,39 @@ function set_prod_bosh_env(){
   esac
   
   bosh target $BOSH_TARGET
+  main_manifest  
   
-  if (bosh task last > /dev/null) ; then
-     bosh -n download manifest $MAIN_DEPLOY ~/tmp/${MAIN_DEPLOY}.yml &
-     bosh_all
-   else
-     echo "ERROR: need to login to $BOSH_TARGET"
-   fi
-  
-   
-   bosh deployments | tr -d '|+' | awk '{print $1 }'| egrep -v -- '^Name|---+[+-]---+|^Deployments' |
-     parallel -j9  -rt 'bosh vms --details {} > ~/jb_env/{}.yml'
+  all_bosh_vms
 }
 
 
 function vms_sane(){
       grep_ip | tr -d '|' | pcut -f 1,-1
 }
+
+function main_manifest(){
+  if (bosh task last > /dev/null) ; then
+     bosh -n download manifest $MAIN_DEPLOY ~/tmp/${MAIN_DEPLOY}.yml &
+     bosh_all
+   else
+     echo "ERROR: need to login to $BOSH_TARGET"
+   fi
+}
+
+function all_bosh_vms() {
+  bosh deployments | tr -d '|+' | awk '{print $1 }'| egrep -v -- '^Name|---+[+-]---+|^Deployments' |
+    parallel -j9  -rt 'bosh vms --details {} > ~/jb_env/{}.yml'
+
+}
+
+function vms() {
+   if [[ -z $* ]] ; then
+     echo "vms list to cat: "
+     select VM_LIST in ~/jb_env/*.yml ; do
+       cat $VM_LIST
+     done
+   else
+     cat ~/jb_env/${MAIN_DEPLOY}.yml
+  fi
+}
+
