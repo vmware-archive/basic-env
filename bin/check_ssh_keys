@@ -1,16 +1,23 @@
 
+for i in $HOME/workspace/prod-aws/keys/id_rsa_thansmann $HOME/workspace/prod-keys/id_rsa_thansmann ; do
+  [[ -f $i ]] && { echo found $i; REAL_KEY=$i ; break ; }
+  unset i
+done
+
+KEYS=($dht/.ssh/gerrit_id_rsa $REAL_KEY)
+for i in $* ; do 
+  KEYS+=($i)
+  unset i 
+done
+
  THIS_HOUR=$(date +%H| perl -pe 's/^0//')
  HOURS_TO_6PM=$(date +%H| perl -ne 'print 18 - $ENV{THIS_HOUR}')
  if [[ $THIS_HOUR -ge 18 ]] ; then
     HOURS_TO_6PM=2
  fi
 
-for i in $HOME/workspace/prod-aws/keys/id_rsa_thansmann $HOME/workspace/prod-keys/id_rsa_thansmann ; do
-    [ -f $i ] && { echo found $i; REAL_KEY=$i ; break ; }
-done
-unset i
 
-for i in $dht/.ssh/gerrit_id_rsa $REAL_KEY ; do
+for i in ${KEYS[@]} ; do
   (ssh-add -l |grep -q $i) && continue
   if [[ -f $i ]]
     then

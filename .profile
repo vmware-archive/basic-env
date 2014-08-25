@@ -762,24 +762,28 @@ function set_prod_bosh_env(){
       JB_NAME=jb-z1.staging.cf-app.com
       MAIN_DEPLOY=cf-staging
       BOSH_TARGET=bosh.staging.cf-app.com
+      BOSH_TREE=~/workspace/staging-aws
     ;;
      
     54.210.167.180)
       JB_NAME=jb-z2.staging.cf-app.com
       MAIN_DEPLOY=cf-staging
       BOSH_TARGET=bosh.staging.cf-app.com
+      BOSH_TREE=~/workspace/staging-aws
     ;;
      
     54.85.115.27)
       JB_NAME=jb-z1.run.pivotal.io
       MAIN_DEPLOY=cf-cfapps-io2
       BOSH_TARGET=bosh.run.pivotal.io
+      BOSH_TREE=~/workspace/prod-aws
     ;;
      
     54.84.228.119)
       JB_NAME=jb-z2.run.pivotal.io
       MAIN_DEPLOY=cf-cfapps-io2
       BOSH_TARGET=bosh.run.pivotal.io
+      BOSH_TREE=~/workspace/prod-aws
     ;;
      
     *)
