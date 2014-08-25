@@ -791,7 +791,7 @@ function set_prod_bosh_env(){
   bosh target $BOSH_TARGET
   
   if (bosh task last > /dev/null) ; then
-     bosh download manifest $MAIN_DEPLOY ~/tmp/${MAIN_DEPLOY}.yml &
+     bosh -n download manifest $MAIN_DEPLOY ~/tmp/${MAIN_DEPLOY}.yml &
      bosh_all
    else
      echo "ERROR: need to login to $BOSH_TARGET"
