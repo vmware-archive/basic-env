@@ -224,8 +224,9 @@ function tabasco () {
 }
 
 function a1 () {
-  bosh_me bosh.a1.cf-app.com
-  NATS_USER_PASS=$( ruby -ryaml -e 'y = YAML.load_file("#{ENV["HOME"]}/workspace/deployments-aws/a1/cf-shared-secrets.yml"); puts "#{y["properties"]["nats"]["user"]}:#{y["properties"]["nats"]["password"]}"' )
+  ssh -A thansmann@jb.a1.cf-app.com
+  #bosh_me bosh.a1.cf-app.com
+  #NATS_USER_PASS=$( ruby -ryaml -e 'y = YAML.load_file("#{ENV["HOME"]}/workspace/deployments-aws/a1/cf-shared-secrets.yml"); puts "#{y["properties"]["nats"]["user"]}:#{y["properties"]["nats"]["password"]}"' )
 }
 
 function nats-ads () {
@@ -244,6 +245,10 @@ function prod () {
   ssh -A thansmann@jb.run.pivotal.io
 }
 
+function prod () {
+  prod_key
+  ssh -A thansmann@jb-z2.run.pivotal.io
+}
 function rprod () {
   ssh-add -D
   chmod 400 /Users/pivotal/workspace/prod-aws/config/id_rsa_jb
@@ -401,6 +406,10 @@ function staging() {
   ssh -L 25555:bosh.staging.cf-app.com:25555 -A thansmann@jb.staging.cf-app.com
 }
 
+function staging2() {
+  ssh -L 25555:bosh.staging.cf-app.com:25555 -A thansmann@jb-z2.staging.cf-app.com
+}
+
 function checklist_reset() {
   perl  -pe 's{\[x\]}{[ ]}g' $1
 }
@@ -456,9 +465,6 @@ function ta() {
   bosh -t bosh.tabasco.cf-app.com $*
 }
 
-function a1() {
-  bosh -t bosh.a1.cf-app.com $*
-}
 
 function job_order() {
   # greps a bosh manifest for the list of jobs
@@ -703,6 +709,12 @@ function stagex() {
 
 }
 
+function devx() {
+    gerrit_key
+    ssh  root@12.144.186.13
+
+}
+
 
 function ssl() {
   cd /Volumes/Untitled/workspace/ssl_certs
@@ -745,4 +757,70 @@ function add_pwd_to_path(){
 echo "Before: $PATH"
 PATH+=":$(pwd)"
 echo "After: $PATH"
+}
+
+function ttt(){
+ set -x 
+  echo "git clone https://github.com/thansmann/basic-env.git ~/basic-env ; . ~/basic-env/.profile"| pbcopy
+ set +x
+}
+
+function set_prod_bosh_env(){
+  mkdir -p ~/jb_env
+  
+  if [[ -s ~/jb_env/our-ip ]] ; then
+    OUR_IP=$(cat  ~/jb_env/our-ip)
+  else
+    OUR_IP=$(curl -s ifconfig.me 2> /dev/null)
+    echo $OUR_IP > ~/jb_env/our-ip
+  fi
+  
+  case $OUR_IP in
+    54.210.178.15)
+      JB_NAME=jb-z1.staging.cf-app.com
+      MAIN_DEPLOY=cf-staging
+      BOSH_TARGET=bosh.staging.cf-app.com
+    ;;
+     
+    54.210.167.180)
+      JB_NAME=jb-z2.staging.cf-app.com
+      MAIN_DEPLOY=cf-staging
+      BOSH_TARGET=bosh.staging.cf-app.com
+    ;;
+     
+    54.85.115.27)
+      JB_NAME=jb-z1.run.pivotal.io
+      MAIN_DEPLOY=cf-cfapps-io2
+      BOSH_TARGET=bosh.run.pivotal.io
+    ;;
+     
+    54.84.228.119)
+      JB_NAME=jb-z2.run.pivotal.io
+      MAIN_DEPLOY=cf-cfapps-io2
+      BOSH_TARGET=bosh.run.pivotal.io
+    ;;
+     
+    *)
+      echo "IP Address [$OUR_IP] is unknown"
+      exit 1
+    ;;
+  esac
+  
+  bosh target $BOSH_TARGET
+  
+  if (bosh task last > /dev/null) ; then
+     bosh download manifest $MAIN_DEPLOY ~/tmp/${MAIN_DEPLOY}.yml &
+     bosh_all
+   else
+     echo "ERROR: need to login to $BOSH_TARGET"
+   fi
+  
+   
+   bosh deployments | tr -d '|+' | awk '{print $1 }'| egrep -v -- '^Name|---+[+-]---+|^Deployments' |
+     parallel -j9  -rt 'bosh vms --details {} > ~/jb_env/{}.yml'
+}
+
+
+function vms_sane(){
+      grep_ip | tr -d '|' | pcut -f 1,-1
 }
