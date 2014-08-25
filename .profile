@@ -811,7 +811,7 @@ function main_manifest(){
 function all_bosh_vms() {
   mkdir ~/tmp/vms
   bosh deployments | tr -d '|+' | awk '{print $1 }'| egrep -v -- '^Name|---+[+-]---+|^Deployments' |
-    parallel -j9  -rt 'bosh vms --details {} > ~/vms/{}.yml'
+    parallel -j9  -rt 'bosh vms --details {} > ~/tmp/vms/{}.yml'
 
 }
 
@@ -833,4 +833,5 @@ function pull_basic-env(){
   pushd ~/basic-env
   git pull 
   popd
+  sp
 }
