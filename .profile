@@ -825,3 +825,9 @@ function vms() {
   fi
 }
 
+
+function pull_basic-env(){
+  pushd ~/basic-env
+  git pull 
+  popd
+}
