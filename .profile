@@ -809,19 +809,22 @@ function main_manifest(){
 }
 
 function all_bosh_vms() {
+  mkdir ~/tmp/vms
   bosh deployments | tr -d '|+' | awk '{print $1 }'| egrep -v -- '^Name|---+[+-]---+|^Deployments' |
-    parallel -j9  -rt 'bosh vms --details {} > ~/jb_env/{}.yml'
+    parallel -j9  -rt 'bosh vms --details {} > ~/vms/{}.yml'
 
 }
 
 function vms() {
+   [[ -d ~/tmp/vms ]] ||  all_bosh_vms
    if [[ -z $* ]] ; then
      echo "vms list to cat: "
-     select VM_LIST in ~/jb_env/*.yml ; do
+     select VM_LIST in ~/vms/*.yml ; do
        cat $VM_LIST
+       break
      done
    else
-     cat ~/jb_env/${MAIN_DEPLOY}.yml
+     cat ~/vms/${MAIN_DEPLOY}.yml
   fi
 }
 
