@@ -743,7 +743,11 @@ echo "After: $PATH"
 
 function ttt(){
  set -x 
-  echo "git clone https://github.com/thansmann/basic-env.git ~/basic-env ; . ~/basic-env/.profile"| pbcopy
+ (
+  echo "git clone https://github.com/thansmann/basic-env.git ~/basic-env ; . ~/basic-env/.profile"
+  echo new_env
+  echo set_prod_bosh_env
+  )| pbcopy
  set +x
 }
 
@@ -821,7 +825,7 @@ function all_bosh_vms() {
 
 function vms() {
    [[ -d ~/tmp/vms ]] ||  all_bosh_vms
-   if [[ -z $* ]] ; then
+   if [[ ! -z $* ]] ; then
      echo "vms list to cat: "
      select VM_LIST in ~/tmp/vms/*.yml ; do
        cat $VM_LIST
