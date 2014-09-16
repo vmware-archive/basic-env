@@ -4,6 +4,9 @@
 (git config -l|grep -q alias.co) || git config --global --add alias.co "checkout"
 (git config -l|grep -q alias.st) || git config --global --add alias.st "status"
 (git config -l|grep -q alias.ci) || git config --global --add alias.ci "duet-commit"
+git config --global user.email "$LOGNAME@pivotal.io"
+[[ $LOGNAME =~ 'thansmann' ]] && git config --global user.name "Tony Hansmann"
+
 # set the git credential cache to avoid typing id/pass a bunch of times
 git config --global credential.helper 'cache --timeout 1200'
 
@@ -818,7 +821,7 @@ function main_manifest(){
 
 function all_bosh_vms() {
   mkdir ~/tmp/vms
-  bosh deployments | tr -d '|+' | awk '{print $1 }'| egrep -v -- '^Name|---+[+-]---+|^Deployments' |
+  bosh deployments | cut -f 2 -d '|'|egrep -v Name| egrep '^ [[:alpha:]]' |
     parallel -j9  -rt 'bosh vms --details {} > ~/tmp/vms/{}.yml'
 
 }
