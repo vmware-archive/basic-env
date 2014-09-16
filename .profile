@@ -820,8 +820,8 @@ function main_manifest(){
 }
 
 function all_bosh_vms() {
-  mkdir ~/tmp/vms
-  bosh deployments | cut -f 2 -d '|'|egrep -v Name| egrep '^ [[:alpha:]]' |
+  mkdir -p ~/tmp/vms
+  bosh deployments | cut -f 2 -d '|'|egrep -v Name| egrep '^ [[:alpha:]]' | tr -d ' ' |
     parallel -j9  -rt 'bosh vms --details {} > ~/tmp/vms/{}.yml'
 
 }
