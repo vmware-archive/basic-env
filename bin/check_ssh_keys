@@ -1,3 +1,4 @@
+#!/bin/bash
 
 for i in $HOME/workspace/prod-aws/keys/id_rsa_thansmann $HOME/workspace/prod-keys/id_rsa_thansmann ; do
   [[ -f $i ]] && { echo found $i; REAL_KEY=$i ; break ; }
@@ -15,7 +16,6 @@ done
  if [[ $THIS_HOUR -ge 18 ]] ; then
     HOURS_TO_6PM=2
  fi
-
 
 for i in ${KEYS[@]} ; do
   (ssh-add -l |grep -q $i) && continue
