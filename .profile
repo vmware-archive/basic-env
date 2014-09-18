@@ -388,6 +388,7 @@ function jb() {
 }
 
 function staging() {
+  prod_key
   ssh -L 25555:bosh.staging.cf-app.com:25555 -A thansmann@jb.staging.cf-app.com
 }
 
@@ -688,6 +689,12 @@ function sandbox3() {
 
 }
 
+function sandbox4() {
+    gerrit_key
+    ssh root@12.144.186.67
+
+}
+
 function stagex() {
     gerrit_key
     ssh  root@12.144.186.18
@@ -745,7 +752,7 @@ echo "After: $PATH"
 }
 
 function ttt(){
- set -x 
+ set -x
  (
   echo "git clone https://github.com/thansmann/basic-env.git ~/basic-env ; . ~/basic-env/.profile"
   echo new_env
@@ -756,14 +763,14 @@ function ttt(){
 
 function set_prod_bosh_env(){
   mkdir -p ~/jb_env
-  
+
   if [[ -s ~/jb_env/our-ip ]] ; then
     OUR_IP=$(cat  ~/jb_env/our-ip)
   else
     OUR_IP=$(curl -s ifconfig.me 2> /dev/null)
     echo $OUR_IP > ~/jb_env/our-ip
   fi
-  
+
   case $OUR_IP in
     54.210.178.15)
       JB_NAME=jb-z1.staging.cf-app.com
@@ -771,37 +778,37 @@ function set_prod_bosh_env(){
       BOSH_TARGET=bosh.staging.cf-app.com
       BOSH_TREE=~/workspace/staging-aws
     ;;
-     
+
     54.210.167.180)
       JB_NAME=jb-z2.staging.cf-app.com
       MAIN_DEPLOY=cf-staging
       BOSH_TARGET=bosh.staging.cf-app.com
       BOSH_TREE=~/workspace/staging-aws
     ;;
-     
+
     54.85.115.27)
       JB_NAME=jb-z1.run.pivotal.io
       MAIN_DEPLOY=cf-cfapps-io2
       BOSH_TARGET=bosh.run.pivotal.io
       BOSH_TREE=~/workspace/prod-aws
     ;;
-     
+
     54.84.228.119)
       JB_NAME=jb-z2.run.pivotal.io
       MAIN_DEPLOY=cf-cfapps-io2
       BOSH_TARGET=bosh.run.pivotal.io
       BOSH_TREE=~/workspace/prod-aws
     ;;
-     
+
     *)
       echo "IP Address [$OUR_IP] is unknown"
       exit 1
     ;;
   esac
-  
+
   bosh target $BOSH_TARGET
-  main_manifest  
-  
+  main_manifest
+
   all_bosh_vms
 }
 
@@ -827,6 +834,7 @@ function all_bosh_vms() {
 }
 
 function vms() {
+   if [[ ! -z $MAIN_DEPLOY ]]; then
    [[ -d ~/tmp/vms ]] ||  all_bosh_vms
    if [[ ! -z $* ]] ; then
      echo "vms list to cat: "
@@ -837,12 +845,64 @@ function vms() {
    else
      cat ~/tmp/vms/${MAIN_DEPLOY}.yml
   fi
+ else
+    set_prod_bosh_env
+ fi
 }
 
 
 function pull_basic-env(){
   pushd ~/basic-env
-  git pull 
+  git pull
   popd
   sp
+}
+
+function cf_migrations(){
+  cd ~/workspace/cf-release
+  if [[ -z "$1" ]] ; then
+    LAST_TWO_TAGS=$(git tag |egrep '^v\d+'|tr -d 'v'|sort -n|tail -2| parallel -n2 echo "v{1}..v{2}")
+  else
+    LAST_TWO_TAGS=$1
+  fi
+  echo "Checking tags $LAST_TWO_TAGS for db migrations in the cloud_controller_ng"
+  CC_COMMITS_FOR_LAST_REQUESTED_TAGS=$(git diff $LAST_TWO_TAGS -- src/cloud_controller_ng | tail -2| pcut | cut -c 1-8 | parallel -n2 echo "{1}..{2}")
+  echo "Tags $LAST_TWO_TAGS corrospond to cc commits $CC_COMMITS_FOR_LAST_REQUESTED_TAGS"
+  cd src/cloud_controller_ng
+  git fc $CC_COMMITS_FOR_LAST_REQUESTED_TAGS -- db/migrations
+}
+
+function aws_prod_ro(){
+  if [[ -f ~/workspace/prod-aws/prod/aws_readonly_keys ]] ; then
+    source ~/workspace/prod-aws/prod/aws_readonly_keys
+    aws $*
+    unset AWS_ACCESS_KEY_ID
+    unset AWS_SECRET_ACCESS_KEY
+  else
+    cd ~/workspace
+    gerrit_key
+    git clone git@github.com:pivotal-cf/prod-aws.git
+  fi
+}
+
+function all_the_repos() {
+  gerrit_key
+  mkdir -p ~/workspace
+  pushd ~/workspace
+
+  for i in bosh cf-release ; do
+    [[ -d $i ]] || GET_ME+="$i "
+  done
+  echo $GET_ME
+  [[ ! -z $GET_ME ]] && parallel -j 25 -rt --keep git clone git@github.com:cloudfoundry/{} ::: $GET_ME
+  unset GET_ME
+
+  for i in prod-aws deployments-aws bosh-jumpbox cloudops-tools prod-keys staging-aws jumpbox-release ; do
+    [[ -d $i ]] || GET_ME+="$i "
+  done
+
+  unset GET_ME
+  [[ ! -z $GET_ME ]] && parallel -j 25 -rt --keep git clone git@github.com:pivotal-cf/{} ::: $GET_ME
+  unset GET_ME
+  popd
 }
