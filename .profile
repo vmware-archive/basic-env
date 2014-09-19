@@ -919,7 +919,6 @@ function all_the_repos() {
     [[ -d $i ]] || GET_ME+="$i "
   done
 
-  unset GET_ME
   [[ ! -z $GET_ME ]] && parallel -j 25 -rt --keep git clone git@github.com:pivotal-cf/{} ::: $GET_ME
   unset GET_ME
   popd
