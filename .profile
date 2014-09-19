@@ -817,8 +817,10 @@ function set_prod_bosh_env(){
     ;;
 
     *)
-      echo "IP Address [$OUR_IP] is unknown"
-      exit 1
+      echo "IP Address [$OUR_IP] is unknown - guessing prod"
+      MAIN_DEPLOY=cf-cfapps-io2
+      BOSH_TARGET=bosh.run.pivotal.io
+      BOSH_TREE=~/workspace/prod-aws
     ;;
   esac
 
