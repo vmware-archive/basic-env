@@ -923,3 +923,17 @@ function all_the_repos() {
   popd
 }
 
+
+function ssh_config(){
+  mkdir -p ~/.ssh
+  if (egrep -q 'ignore our cows moos' ~/.ssh/config) ; then 
+    echo "We ignoring mooing"
+  else
+    echo ' 
+Host 10.* # ignore our cows moos
+  User vcap
+  StrictHostKeyChecking no
+  UserKnownHostsFile /dev/null
+' >> ~/.ssh/config
+fi
+}
