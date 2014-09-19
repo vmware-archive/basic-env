@@ -666,15 +666,31 @@ f
 $* | tee $f
 }
 
+function ssh-keyness() {
+  if [[ -f $1  ]] ; then
+    local KEY=$1
+    chmod 400 $KEY
+    local FINGERPRINT=$(ssh-keygen -lf $KEY|awk '{print $2}') 
+    (ssh-add -l | grep -q $FINGERPRINT ) || ssh-add $KEY
+  else
+    echo "WARN: could not find key [$1], doing nothing"
+  fi
+}
 
 function gerrit_key() {
-    (ssh-add -l | grep -q d7:85:17:1d:75:8b:f2:87:41:0c:10:91:93:88:6e:fb ) || ssh-add /Users/pivotal/Dropbox/home/thansmann/.ssh/gerrit_id_rsa
-
+  ssh-keyness /Users/pivotal/Dropbox/home/thansmann/.ssh/gerrit_id_rsa
 }
 
 function prod_key() {
-    (ssh-add -l | grep -q 46:82:fd:8a:bd:cb:75:92:43:90:e2:5c:32:b7:05:7b ) || ssh-add /Users/pivotal/workspace/prod-aws/keys/id_rsa_thansmann
+  ssh-keyness /Users/pivotal/workspace/prod-aws/keys/id_rsa_thansmann
+}
 
+function prod_bosh_key() {
+  ssh-keyness /Users/pivotal/workspace/prod-aws/config/id_rsa_bosh
+}
+
+function staging_bosh_key() {
+  ssh-keyness /Users/pivotal/workspace/staging-aws/config/id_rsa_bosh
 }
 
 function sandbox2() {
@@ -906,3 +922,4 @@ function all_the_repos() {
   unset GET_ME
   popd
 }
+
