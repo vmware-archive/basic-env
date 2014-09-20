@@ -10,7 +10,7 @@ git config --global user.email "$LOGNAME@pivotal.io"
 # set the git credential cache to avoid typing id/pass a bunch of times
 git config --global credential.helper 'cache --timeout 1200'
 
-complete -C /Users/pivotal/.local/lib/aws/bin/aws_completer aws
+complete -C ~/.local/lib/aws/bin/aws_completer aws
 export ALT_HOME=~/Dropbox/home/thansmann
 export EDITOR=vi
 echo 'bind status C !git ci' >> ~/.tigrc
@@ -193,8 +193,8 @@ function seed_etc_profile (){
 }
 
 function th_ssh_key () {
-  chmod 400 /Users/pivotal/Dropbox/home/thansmann/.ssh/gerrit_id_rsa
-  ssh-add /Users/pivotal/Dropbox/home/thansmann/.ssh/gerrit_id_rsa
+  chmod 400 ~/Dropbox/home/thansmann/.ssh/gerrit_id_rsa
+  ssh-add ~/Dropbox/home/thansmann/.ssh/gerrit_id_rsa
 }
 
 alias tkey='th_ssh_key'
@@ -215,7 +215,7 @@ function a1 () {
 }
 
 function nats-ads () {
-  ( cd /Users/pivotal/workspace/tools/nats-inspect
+  ( cd ~/workspace/tools/nats-inspect
     go get
     go install
     bosh_tunnel nats/0 &
@@ -236,8 +236,8 @@ function prod () {
 }
 function rprod () {
   ssh-add -D
-  chmod 400 /Users/pivotal/workspace/prod-aws/config/id_rsa_jb
-  ssh-add -t 4900 /Users/pivotal/workspace/prod-aws/config/id_rsa_jb
+  chmod 400 ~/workspace/prod-aws/config/id_rsa_jb
+  ssh-add -t 4900 ~/workspace/prod-aws/config/id_rsa_jb
   ssh -A ubuntu@jb.go.cloudfoundry.com
 }
 
@@ -272,7 +272,7 @@ cd tools-cf-plugin
 }
 
 function pass () {
-  vim /Users/pivotal/workspace/prod-aws/passwords_and_accounts.md
+  vim ~/workspace/prod-aws/passwords_and_accounts.md
 
 }
 
@@ -287,12 +287,12 @@ function space2slash_s_+() {
 
 bbb(){
   set -x
-  cat /Users/pivotal/Dropbox/home/thansmann/home_dot_files/bosh_job_paste | pbcopy
+  cat ~/Dropbox/home/thansmann/home_dot_files/bosh_job_paste | pbcopy
   set +x
 }
 
 function job_env {
-  cat /Users/pivotal/Dropbox/home/runtime/job_env_paste | pbcopy
+  cat ~/Dropbox/home/runtime/job_env_paste | pbcopy
   echo "now paste it into the shell on your bosh job"
 }
 
@@ -486,7 +486,7 @@ pushenv () {
 
 
 function att_spiff(){
- bash -x /Users/pivotal/workspace/att_spiffable_template/bin/att_spiff
+ bash -x ~/workspace/att_spiffable_template/bin/att_spiff
 }
 
 function aws_ssh_fingerprint () {
@@ -678,19 +678,19 @@ function ssh-keyness() {
 }
 
 function gerrit_key() {
-  ssh-keyness /Users/pivotal/Dropbox/home/thansmann/.ssh/gerrit_id_rsa
+  ssh-keyness ~/Dropbox/home/thansmann/.ssh/gerrit_id_rsa
 }
 
 function prod_key() {
-  ssh-keyness /Users/pivotal/workspace/prod-aws/keys/id_rsa_thansmann
+  ssh-keyness ~/workspace/prod-aws/keys/id_rsa_thansmann
 }
 
 function prod_bosh_key() {
-  ssh-keyness /Users/pivotal/workspace/prod-aws/config/id_rsa_bosh
+  ssh-keyness ~/workspace/prod-aws/config/id_rsa_bosh
 }
 
 function staging_bosh_key() {
-  ssh-keyness /Users/pivotal/workspace/staging-aws/config/id_rsa_bosh
+  ssh-keyness ~/workspace/staging-aws/config/id_rsa_bosh
 }
 
 function sandbox2() {
