@@ -10,7 +10,7 @@ git config --global user.email "$LOGNAME@pivotal.io"
 # set the git credential cache to avoid typing id/pass a bunch of times
 git config --global credential.helper 'cache --timeout 1200'
 
-complete -C ~/.local/lib/aws/bin/aws_completer aws
+complete -C $HOME/.local/lib/aws/bin/aws_completer aws
 export ALT_HOME=~/Dropbox/home/thansmann
 export EDITOR=vi
 echo 'bind status C !git ci' >> ~/.tigrc
@@ -193,8 +193,8 @@ function seed_etc_profile (){
 }
 
 function th_ssh_key () {
-  chmod 400 ~/Dropbox/home/thansmann/.ssh/gerrit_id_rsa
-  ssh-add ~/Dropbox/home/thansmann/.ssh/gerrit_id_rsa
+  chmod 400 $HOME/Dropbox/home/thansmann/.ssh/gerrit_id_rsa
+  ssh-add $HOME/Dropbox/home/thansmann/.ssh/gerrit_id_rsa
 }
 
 alias tkey='th_ssh_key'
@@ -204,18 +204,18 @@ function gh () {
 }
 
 function tabasco () {
-  bosh_me bosh.tabasco.cf-app.com
+  bosh_me bosh.tabasco.cf-app.com $*
   NATS_USER_PASS=$(ruby -ryaml -e 'y = YAML.load_file("#{ENV["HOME"]}/workspace/deployments-aws/tabasco/cf-aws-stub.yml"); puts "#{y["properties"]["nats"]["user"]}:#{y["properties"]["nats"]["password"]}"')
 }
 
 function a1 () {
-  ssh -A thansmann@jb.a1.cf-app.com
+  ssh -A thansmann@jb.a1.cf-app.com $* 
   #bosh_me bosh.a1.cf-app.com
   #NATS_USER_PASS=$( ruby -ryaml -e 'y = YAML.load_file("#{ENV["HOME"]}/workspace/deployments-aws/a1/cf-shared-secrets.yml"); puts "#{y["properties"]["nats"]["user"]}:#{y["properties"]["nats"]["password"]}"' )
 }
 
 function nats-ads () {
-  ( cd ~/workspace/tools/nats-inspect
+  ( cd $HOME/workspace/tools/nats-inspect
     go get
     go install
     bosh_tunnel nats/0 &
@@ -227,18 +227,21 @@ function nats-ads () {
 
 function prod () {
   prod_key
-  ssh -A thansmann@jb.run.pivotal.io
+  ssh -A thansmann@jb.run.pivotal.io $*
 }
 
-function prod () {
-  prod_key
-  ssh -A thansmann@jb-z2.run.pivotal.io
-}
 function rprod () {
   ssh-add -D
-  chmod 400 ~/workspace/prod-aws/config/id_rsa_jb
-  ssh-add -t 4900 ~/workspace/prod-aws/config/id_rsa_jb
-  ssh -A ubuntu@jb.go.cloudfoundry.com
+  chmod 400 $HOME/workspace/prod-aws/config/id_rsa_jb
+  ssh-add -t 4900 $HOME/workspace/prod-aws/config/id_rsa_jb
+  ssh -A ubuntu@jb.run.pivotal.io $*
+}
+
+function rprod () {
+  ssh-add -D
+  chmod 400 $HOME/workspace/prod-aws/config/id_rsa_jb
+  ssh-add -t 4900 $HOME/workspace/prod-aws/config/id_rsa_jb
+  ssh -A ubuntu@jb-z2.run.pivotal.io $*
 }
 
 function bosh_me () {
@@ -257,7 +260,6 @@ function clear_4222 () {
 
 }
 
-
 function cf_tools () {
 (
 w
@@ -272,7 +274,7 @@ cd tools-cf-plugin
 }
 
 function pass () {
-  vim ~/workspace/prod-aws/passwords_and_accounts.md
+  vim $HOME/workspace/prod-aws/passwords_and_accounts.md
 
 }
 
@@ -287,12 +289,12 @@ function space2slash_s_+() {
 
 bbb(){
   set -x
-  cat ~/Dropbox/home/thansmann/home_dot_files/bosh_job_paste | pbcopy
+  cat $HOME/Dropbox/home/thansmann/home_dot_files/bosh_job_paste | pbcopy
   set +x
 }
 
 function job_env {
-  cat ~/Dropbox/home/runtime/job_env_paste | pbcopy
+  cat $HOME/Dropbox/home/runtime/job_env_paste | pbcopy
   echo "now paste it into the shell on your bosh job"
 }
 
@@ -486,7 +488,7 @@ pushenv () {
 
 
 function att_spiff(){
- bash -x ~/workspace/att_spiffable_template/bin/att_spiff
+ bash -x $HOME/workspace/att_spiffable_template/bin/att_spiff
 }
 
 function aws_ssh_fingerprint () {
@@ -678,48 +680,54 @@ function ssh-keyness() {
 }
 
 function gerrit_key() {
-  ssh-keyness ~/Dropbox/home/thansmann/.ssh/gerrit_id_rsa
+  ssh-keyness $HOME/Dropbox/home/thansmann/.ssh/gerrit_id_rsa
 }
 
 function prod_key() {
-  ssh-keyness ~/workspace/prod-aws/keys/id_rsa_thansmann
+  ssh-keyness $HOME/workspace/prod-aws/keys/id_rsa_thansmann
 }
 
 function prod_bosh_key() {
-  ssh-keyness ~/workspace/prod-aws/config/id_rsa_bosh
+  ssh-keyness $HOME/workspace/prod-aws/config/id_rsa_bosh
 }
 
+function prod_jb_key() {
+  ssh-keyness $HOME/workspace/prod-aws/config/id_rsa_jb
+}
 function staging_bosh_key() {
-  ssh-keyness ~/workspace/staging-aws/config/id_rsa_bosh
+  ssh-keyness $HOME/workspace/staging-aws/config/id_rsa_bosh
+}
+function staging_jb_key() {
+  ssh-keyness $HOME/workspace/staging-aws/config/id_rsa_jb
 }
 
 function sandbox2() {
     gerrit_key
-    ssh -AL 25555:10.107.0.10:25555 root@12.144.186.145
+    ssh -AL 25555:10.107.0.10:25555 root@12.144.186.145 $*
 
 }
 
 function sandbox3() {
     gerrit_key
-    ssh root@12.144.186.59
+    ssh root@12.144.186.59 $*
 
 }
 
 function sandbox4() {
     gerrit_key
-    ssh root@12.144.186.67
+    ssh root@12.144.186.67 $*
 
 }
 
 function stagex() {
     gerrit_key
-    ssh  root@12.144.186.18
+    ssh  root@12.144.186.18 $*
 
 }
 
 function devx() {
     gerrit_key
-    ssh  root@12.144.186.13
+    ssh  root@12.144.186.13 $*
 
 }
 
@@ -919,6 +927,7 @@ function all_the_repos() {
     [[ -d $i ]] || GET_ME+="$i "
   done
 
+  unset GET_ME
   [[ ! -z $GET_ME ]] && parallel -j 25 -rt --keep git clone git@github.com:pivotal-cf/{} ::: $GET_ME
   unset GET_ME
   popd
@@ -933,6 +942,12 @@ function ssh_config(){
     echo ' 
 Host 10.* # ignore our cows moos
   User vcap
+  StrictHostKeyChecking no
+  UserKnownHostsFile /dev/null
+Host jb*.pivotal.io
+  StrictHostKeyChecking no
+  UserKnownHostsFile /dev/null
+Host jb*.cf-app.com
   StrictHostKeyChecking no
   UserKnownHostsFile /dev/null
 ' >> ~/.ssh/config
