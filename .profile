@@ -636,7 +636,7 @@ function migrate_basic_env() {
   if [[ -d ~/workspace/basic-env ]] ; then
     cp -a $dht/{.profile,.screenrc,.tmux.conf} $dht/home_dot_files/.gitconfig ~/workspace/basic-env
     mkdir -p ~/workspace/basic-env/bin
-    cp -a $dht/bin/{push_env,install_bosh+tools,check_ssh_keys,jsh,summarize_jsh,ll,llp,lll,pcut,++,nl2.pl,print_between,tree_perms.pl,kibme,next_file_named,show_swapping_procs,llll} ~/workspace/basic-env/bin
+    cp -a $dht/bin/{gen_sudo_shell_command.bash,aws_NAT_boxes_for_all_regions.bash,push_env,install_bosh+tools,check_ssh_keys,jsh,summarize_jsh,ll,llp,lll,pcut,++,nl2.pl,print_between,tree_perms.pl,kibme,next_file_named,show_swapping_procs,llll} ~/workspace/basic-env/bin
     git commit -a --cleanup=strip -v
   fi
 }
@@ -952,4 +952,17 @@ Host jb*.cf-app.com
   UserKnownHostsFile /dev/null
 ' >> ~/.ssh/config
 fi
+}
+
+function tmate_install() {
+  staging_jb_key
+  for i in 1 2 ; do
+  ssh -A ubuntu@jb-z$i.staging.cf-app.com "
+    sudo apt-get install -y python-software-properties && \
+    sudo add-apt-repository ppa:nviennot/tmate      && \
+    sudo apt-get update                             && \
+    sudo apt-get install -y tmate
+   "
+ done
+
 }
