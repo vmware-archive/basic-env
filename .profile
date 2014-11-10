@@ -391,7 +391,12 @@ function jb() {
 
 function staging() {
   prod_key
-  ssh -L 25555:bosh.staging.cf-app.com:25555 -A thansmann@jb.staging.cf-app.com
+  if [[ -z $1 ]] ; then
+	ID=thansmann
+else
+	ID=$1
+fi
+  ssh -L 25555:bosh.staging.cf-app.com:25555 -A $ID@jb.staging.cf-app.com
 }
 
 function staging2() {
@@ -700,6 +705,17 @@ function staging_bosh_key() {
 function staging_jb_key() {
   ssh-keyness $HOME/workspace/staging-aws/config/id_rsa_jb
 }
+function lakitu_jb_key() {
+  ssh-keyness $HOME/workspace/cloudop-ci/config/id_rsa_jb
+}
+
+
+function lakitu() {
+    lakitu_jb_key
+    ssh -A vcap@jb.lakitu.cf-app.com $*
+}
+
+
 
 function sandbox2() {
     gerrit_key
