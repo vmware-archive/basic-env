@@ -982,3 +982,5 @@ function tmate_install() {
  done
 
 }
+
+unalias q 2>/dev/null
