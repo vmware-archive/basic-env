@@ -652,7 +652,7 @@ function new_env() {
   cd ; ln -svf ~/basic-env/.profile .profile
   cd ; ln -svf ~/basic-env/.screenrc .screenrc
   cd ; ln -svf ~/basic-env/.tmux.conf .tmux.conf
-  cd bin ; ./nl2.pl --egg| xargs -I {} bash -c '{}'
+  cd bin ; ./nl2.pl --egg| sort | uniq | xargs -I {} bash -c '{}'
   cd ; ~/bin/install_bosh+tools
 }
 
