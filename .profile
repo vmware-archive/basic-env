@@ -16,7 +16,7 @@ export EDITOR=vi
 echo 'bind status C !git ci' >> ~/.tigrc
 
 #chruby ruby-1.9.3-p448
-[ -x /usr/libexec/java_home ] && export JAVA_HOME=`/usr/libexec/java_home -v 1.6`
+#[ -x /usr/libexec/java_home ] && export JAVA_HOME=`/usr/libexec/java_home -v 1.6`
 export maj=cetas-dev-majestic
 export w="$HOME/workspace"
 export wda="$HOME/workspace/deployments-aws"
