@@ -13,6 +13,7 @@ git config --global credential.helper 'cache --timeout 1200'
 complete -C $HOME/.local/lib/aws/bin/aws_completer aws
 export ALT_HOME=~/Dropbox/home/thansmann
 export EDITOR=vi
+export GOPATH=$HOME/go
 echo 'bind status C !git ci' >> ~/.tigrc
 
 #chruby ruby-1.9.3-p448
