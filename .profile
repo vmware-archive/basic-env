@@ -937,16 +937,18 @@ function all_the_repos() {
     [[ -d $i ]] || GET_ME+="$i "
   done
   echo $GET_ME
+
   [[ ! -z $GET_ME ]] && parallel -j 25 -rt --keep git clone git@github.com:cloudfoundry/{} ::: $GET_ME
   unset GET_ME
 
   for i in prod-aws deployments-aws bosh-jumpbox cloudops-tools prod-keys staging-aws jumpbox-release ; do
     [[ -d $i ]] || GET_ME+="$i "
   done
+  echo $GET_ME
 
-  unset GET_ME
   [[ ! -z $GET_ME ]] && parallel -j 25 -rt --keep git clone git@github.com:pivotal-cf/{} ::: $GET_ME
   unset GET_ME
+
   popd
 }
 
