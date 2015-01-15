@@ -928,6 +928,21 @@ function aws_prod_ro(){
   fi
 }
 
+
+function repo_all_the_way() {
+  ORGREPO="$1"
+  REPO="$(basename "${ORGREPO}")"
+  git clone "git@github.com:${ORGREPO}"
+  pushd "$HOME/workspace/${REPO}"
+  if [[ -x update ]]; then
+    ./update
+  else
+    git submodule update --init --recursive
+  fi
+  popd
+}
+export -f repo_all_the_way
+
 function all_the_repos() {
   ssh -o StrictHostKeyChecking=false -T git@github.com
   mkdir -p ~/workspace
@@ -946,7 +961,7 @@ function all_the_repos() {
     [[ -d ${i#*/} ]] || GET_ME+="$i "
   done
   echo $GET_ME
-  [[ ! -z $GET_ME ]] && parallel -j 25 -rt --keep git clone git@github.com:{} ::: $GET_ME
+  [[ ! -z $GET_ME ]] && parallel -j 25 -rt --keep repo_all_the_way "{}" ::: $GET_ME
 
   popd
   unset GET_ME
