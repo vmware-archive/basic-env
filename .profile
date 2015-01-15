@@ -951,6 +951,7 @@ function all_the_repos() {
 
   for i in cloudfoundry/bosh \
            cloudfoundry/cf-release \
+           cloudfoundry/bosh-jumpbox \
            cloudfoundry-incubator/diego-release \
            pivotal-cf/prod-aws \
            pivotal-cf/deployments-aws \
