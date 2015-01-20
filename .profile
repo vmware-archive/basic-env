@@ -84,6 +84,8 @@ alias pdd='pushd'
 alias pd='popd'
 
 
+source ~/workspace/basic-env/bin/common
+
 function sp(){
     if [ -f $dht/.profile ] ; then
         source $dht/.profile
@@ -955,5 +957,4 @@ function tmate_install() {
 
 }
 
-source ~/workspace/basic-env/bin/common
 unalias q || true
