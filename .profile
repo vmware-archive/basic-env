@@ -12,11 +12,12 @@ git config --global credential.helper 'cache --timeout 1200'
 
 complete -C $HOME/.local/lib/aws/bin/aws_completer aws
 export ALT_HOME=~/Dropbox/home/thansmann
-export EDITOR=vi
+export EDITOR=vim
+export GOPATH=$HOME/go
 echo 'bind status C !git ci' >> ~/.tigrc
 
 #chruby ruby-1.9.3-p448
-[ -x /usr/libexec/java_home ] && export JAVA_HOME=`/usr/libexec/java_home -v 1.6`
+#[ -x /usr/libexec/java_home ] && export JAVA_HOME=`/usr/libexec/java_home -v 1.6`
 export maj=cetas-dev-majestic
 export w="$HOME/workspace"
 export wda="$HOME/workspace/deployments-aws"
@@ -645,7 +646,7 @@ function new_env() {
   cd ; ln -svf ~/basic-env/.profile .profile
   cd ; ln -svf ~/basic-env/.screenrc .screenrc
   cd ; ln -svf ~/basic-env/.tmux.conf .tmux.conf
-  cd bin ; ./nl2.pl --egg| xargs -I {} bash -c '{}'
+  cd bin ; ./nl2.pl --egg| sort | uniq | xargs -I {} bash -c '{}'
   cd ; ~/bin/install_bosh+tools
 }
 
@@ -955,3 +956,4 @@ function tmate_install() {
 }
 
 source ~/workspace/basic-env/bin/common
+unalias q || true
