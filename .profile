@@ -84,7 +84,7 @@ alias pdd='pushd'
 alias pd='popd'
 
 
-source ~/workspace/basic-env/bin/common
+source basic-env/bin/common
 
 function sp(){
     if [ -f $dht/.profile ] ; then
