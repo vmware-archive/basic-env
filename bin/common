@@ -1,0 +1,84 @@
+function bosh_me() {
+  if [[ "$#" -ne 1  || ! "$1" =~ prod|staging|lakitu ]]; then
+    echo 'Usage: bosh_me [prod|staging|lakitu]'
+    return 1
+  fi
+  BOSH_ENV=$1
+
+  director_host=bosh.${BOSH_ENV}.cf-app.com
+  deployment=$HOME/workspace/deployments-aws/$BOSH_ENV/cf-aws-stub.yml
+  if [ $BOSH_ENV = "prod" ]; then
+    director_host=bosh.run.pivotal.io
+    deployment=${HOME}/workspace/prod-aws/prod/cf-cfapps-io2/cf-cfapps-io2.yml
+  elif [ $BOSH_ENV = "staging" ]; then
+    deployment=${HOME}/workspace/staging-aws/staging/cf-staging/cf-staging.yml
+  elif [ $BOSH_ENV = "lakitu" ]; then
+    deployment=${HOME}/workspace/cloudops-ci/lakitu/cf-lakitu-ci/cf-lakitu-ci.yml
+  fi
+
+  bosh target $director_host
+  bosh deployment $deployment
+  bosh status
+}
+
+function router_status() {
+  if [[ "$#" -ne 1  || ! "$1" =~ prod|staging|lakitu ]]; then
+    echo 'Usage: router_status [prod|staging|lakitu]'
+    return 1
+  fi
+  BOSH_ENV=$1
+  if [ $BOSH_ENV = "prod" ]; then
+    deployment=${HOME}/workspace/prod-aws/prod/cf-cfapps-io2/cf-cfapps-io2.yml
+  elif [ $BOSH_ENV = "staging" ]; then
+    deployment=${HOME}/workspace/staging-aws/staging/cf-staging/cf-staging.yml
+  elif [ $BOSH_ENV = "lakitu" ]; then
+    deployment=${HOME}/workspace/cloudops-ci/lakitu/cf-lakitu-ci/cf-lakitu-ci.yml
+  fi
+  GREP_USER="data = YAML::load(STDIN.read); puts data['properties']['router']['status']['user']"
+  GREP_PASS="data = YAML::load(STDIN.read); puts data['properties']['router']['status']['password']"
+  user=`cat $deployment | ruby -ryaml -e "$GREP_USER"`
+  pass=`cat $deployment | ruby -ryaml -e "$GREP_PASS"`
+
+  for i in varz routes ; do
+    bosh vms |grep router | cut -f 5 -d '|' | tr -d ' ' | parallel -j 20 -rt --keep "curl -s http://$user:$pass@{}:8080/$i | jq .> ~/tmp/{}.$i.json" ;
+  done
+}
+
+function repo_all_the_way() {
+  ORGREPO="$1"
+  REPO="$(basename "${ORGREPO}")"
+  git clone "git@github.com:${ORGREPO}"
+  pushd "$HOME/workspace/${REPO}"
+  if [[ -x update ]]; then
+    ./update
+  else
+    git submodule update --init --recursive
+  fi
+  popd
+}
+export -f repo_all_the_way
+
+function all_the_repos() {
+  ssh -o StrictHostKeyChecking=false -T git@github.com
+  mkdir -p ~/workspace
+  pushd ~/workspace
+  unset GET_ME
+
+  for i in cloudfoundry/bosh \
+           cloudfoundry/cf-release \
+           cloudfoundry/bosh-jumpbox \
+           cloudfoundry-incubator/diego-release \
+           pivotal-cf/prod-aws \
+           pivotal-cf/deployments-aws \
+           pivotal-cf/cloudops-tools \
+           pivotal-cf/prod-keys \
+           pivotal-cf/staging-aws \
+           pivotal-cf/cloudops-ci; do
+    [[ -d ${i#*/} ]] || GET_ME+="$i "
+  done
+  echo $GET_ME
+  [[ ! -z $GET_ME ]] && parallel -j 25 -rt --keep repo_all_the_way "{}" ::: $GET_ME
+
+  popd
+  unset GET_ME
+}
