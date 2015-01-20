@@ -244,13 +244,6 @@ function rprod () {
   ssh -A ubuntu@jb-z2.run.pivotal.io $*
 }
 
-function bosh_me () {
-  bosh target $1
-  BOSH_ENV=$(echo $1 | cut -f 2 -d '.' )
-  bosh status
-  bosh deployment $HOME/workspace/deployments-aws/$BOSH_ENV/cf-aws-stub.yml
-}
-
 
 function clear_4222 () {
   ps aux | grep ssh|grep 4222 | grep -v grep
@@ -927,28 +920,6 @@ function aws_prod_ro(){
   fi
 }
 
-function all_the_repos() {
-  gerrit_key
-  mkdir -p ~/workspace
-  pushd ~/workspace
-
-  for i in bosh cf-release ; do
-    [[ -d $i ]] || GET_ME+="$i "
-  done
-  echo $GET_ME
-  [[ ! -z $GET_ME ]] && parallel -j 25 -rt --keep git clone git@github.com:cloudfoundry/{} ::: $GET_ME
-  unset GET_ME
-
-  for i in prod-aws deployments-aws bosh-jumpbox cloudops-tools prod-keys staging-aws jumpbox-release ; do
-    [[ -d $i ]] || GET_ME+="$i "
-  done
-
-  unset GET_ME
-  [[ ! -z $GET_ME ]] && parallel -j 25 -rt --keep git clone git@github.com:pivotal-cf/{} ::: $GET_ME
-  unset GET_ME
-  popd
-}
-
 
 function ssh_config(){
   mkdir -p ~/.ssh
@@ -982,3 +953,5 @@ function tmate_install() {
  done
 
 }
+
+source ~/workspace/basic-env/bin/common
