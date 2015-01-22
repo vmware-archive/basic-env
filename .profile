@@ -721,7 +721,7 @@ function sandbox2() {
 
 function sandbox3() {
     gerrit_key
-    ssh root@12.144.186.59 $*
+    ssh root@12.144.186.140 $*
 
 }
 
