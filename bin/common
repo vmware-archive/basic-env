@@ -128,8 +128,6 @@ function repo_all_the_way() {
   then
     donothing=true
   else
-    which_p chruby exitout chruby
-
     OLDRUBY=$(chruby | grep \*| awk '{print $2}')
     for i in $(chruby | grep -v \*)
     do
@@ -146,22 +144,28 @@ function repo_all_the_way() {
 }
 export -f repo_all_the_way
 
+export -f chruby
 function all_the_repos() {
   ssh -o StrictHostKeyChecking=false -T git@github.com
   mkdir -p ~/workspace
   pushd ~/workspace
   unset GET_ME
 
-  for i in cloudfoundry/bosh \
-           cloudfoundry/cf-release \
-           cloudfoundry/bosh-jumpbox \
+  for i in \
            cloudfoundry-incubator/diego-release \
-           pivotal-cf/prod-aws \
-           pivotal-cf/deployments-aws \
+           cloudfoundry/bosh \
+           cloudfoundry/bosh-jumpbox \
+           cloudfoundry/cf-release \
+           cloudfoundry/datadog-config \
+           pivotal-cf-experimental/basic-env \
+           pivotal-cf/cloudops-ci \
            pivotal-cf/cloudops-tools \
+           pivotal-cf/deployments-aws \
+           pivotal-cf/prod-aws \
            pivotal-cf/prod-keys \
-           pivotal-cf/staging-aws \
-           pivotal-cf/cloudops-ci; do
+           pivotal-cf/sprout-wrap \
+           pivotal-cf/staging-aws
+  do
     [[ -d ${i#*/} ]] || GET_ME+="$i "
   done
   echo $GET_ME
