@@ -107,7 +107,6 @@ function which_p() {
 
   $cmd
 }
-export -f which_p
 
 function repo_all_the_way() {
   ORGREPO="$1"
