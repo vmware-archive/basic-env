@@ -14,13 +14,13 @@ exec $SHELL -l
 
 ## What `new_env` sets up
 
-1. **Symlinks rc files into ~**  
+1. Symlinks rc files into `~`  
    ***WARNING: This is meant for a new env and force overwrites ~/.profile***  
    `.profile ->   ~/basic-env/.profile`  
    `.screenrc ->  ~/basic-env/.screenrc`  
    `.tmux.conf -> ~/basic-env/.tmux.conf`
-1. **Adds a ~/bin dir and copies files in place**
-1. **Installs some helpful tools:**
+1. Adds a `~/bin` dir and copies files in place
+1. Installs some helpful tools:
     - ruby bundler 
     - bosh\_cli
     - Gnu Parallel - better xargs
