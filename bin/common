@@ -119,26 +119,6 @@ function repo_all_the_way() {
     git submodule update --init --recursive
   fi
 
-  # Run bundler
-  which_p bundler gem bundle install
-
-  # If no ruby is specified, then we want to run bundler on the other installed rubies
-  if [[ -f .ruby-version ]]
-  then
-    donothing=true
-  else
-    OLDRUBY=$(chruby | grep \*| awk '{print $2}')
-    for i in $(chruby | grep -v \*)
-    do
-      echo "Running bundler for ruby: $i"
-      chruby $i
-      which_p bundler gem bundle install
-    done
-    chruby $OLDRUBY
-  fi
-
-
-
   popd
 }
 export -f repo_all_the_way
