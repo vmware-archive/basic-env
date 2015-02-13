@@ -29,7 +29,7 @@ export th_ssh_config="$HOME/Dropbox/home/thansmann/.ssh/config"
 export dht="$HOME/Dropbox/home/thansmann"
 export ssl="/Volumes/Untitled/workspace/ssl_certs"
 
-for path_element in $dht/bin /usr/local/go/bin $HOME/go/bin $EC2_HOME/bin $HOME/bin /usr/local/bin ; do
+for path_element in $dht/bin /usr/local/go/bin $HOME/go/bin $EC2_HOME/bin $HOME/bin /usr/local/bin $HOME/workspace/cloudops-tools/bin ; do
     [[ -d $path_element ]] && PATH+=":${path_element}"
 done
 
