@@ -90,17 +90,13 @@ function all_the_repos() {
 
   for i in \
            cloudfoundry-incubator/diego-release \
-           cloudfoundry/bosh \
-           cloudfoundry/bosh-jumpbox \
            cloudfoundry/cf-release \
-           cloudfoundry/datadog-config \
            pivotal-cf-experimental/basic-env \
            pivotal-cf/cloudops-ci \
            pivotal-cf/cloudops-tools \
            pivotal-cf/deployments-aws \
            pivotal-cf/prod-aws \
            pivotal-cf/prod-keys \
-           pivotal-cf/sprout-wrap \
            pivotal-cf/staging-aws
   do
     [[ -d ${i#*/} ]] || GET_ME+="$i "
