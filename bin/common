@@ -66,48 +66,6 @@ function router_status() {
   done
 }
 
-##
-# Input: 
-#   package: The name of the installable package
-#   type: The installation source
-#   cmd: The command to execute once the package has been confirmed installed.
-#
-#   Note: the third argument, $cmd, is optional
-function which_p() { 
-  package="$1"; shift
-  type="$1"; shift
-  cmd="$@"
-
-
-  ##
-  # One of these will return 0 if the program is installed...
-  which "$cmd" 1>/dev/null 2>&1
-  errcodea=$?
-  type "$cmd" 1>/dev/null 2>&1
-  errcodeb=$?
-  # Meaning this will multiply to a result of 0
-  result=$(( $errcodea * $errcodeb ))
-
-  # Therefore, if result is zero, then it is already installed
-  if [[ $result -eq 0 ]] 
-  then
-    do_nothing=true
-  else
-    echo "Installing $package"
-    case $type in
-    "gem")
-      gem install "$package"
-      ;;
-    *)
-      echo "Error type: $type not defined"
-      exit 2
-      ;;
-    esac
-  fi
-
-  $cmd
-}
-
 function repo_all_the_way() {
   ORGREPO="$1"
   REPO="$(basename "${ORGREPO}")"
