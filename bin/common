@@ -92,12 +92,12 @@ function all_the_repos() {
            cloudfoundry-incubator/diego-release \
            cloudfoundry/cf-release \
            pivotal-cf-experimental/basic-env \
-           pivotal-cf/cloudops-ci \
-           pivotal-cf/cloudops-tools \
            pivotal-cf/deployments-aws \
-           pivotal-cf/prod-aws \
            pivotal-cf/prod-keys \
-           pivotal-cf/staging-aws
+           pivotal-cloudops/cloudops-ci \
+           pivotal-cloudops/cloudops-tools \
+           pivotal-cloudops/prod-aws \
+           pivotal-cloudops/staging-aws
   do
     [[ -d ${i#*/} ]] || GET_ME+="$i "
   done
