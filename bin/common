@@ -97,6 +97,7 @@ function all_the_repos() {
            pivotal-cloudops/cloudops-ci \
            pivotal-cloudops/cloudops-tools \
            pivotal-cloudops/prod-aws \
+           pivotal-cloudops/mysql_restore \
            pivotal-cloudops/staging-aws
   do
     [[ -d ${i#*/} ]] || GET_ME+="$i "
