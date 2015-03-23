@@ -35,7 +35,7 @@ function bosh_me() {
   elif [ $BOSH_ENV = "staging" ]; then
     deployment=${HOME}/workspace/staging-aws/deployments/cf-staging/cf-staging.yml
   elif [ $BOSH_ENV = "lakitu" ]; then
-    deployment=${HOME}/workspace/cloudops-ci/lakitu/cf-lakitu-ci/cf-lakitu-ci.yml
+    deployment=${HOME}/workspace/cloudops-ci/lakitu/deployments/cf-lakitu-ci.yml
   fi
 
   bosh target $director_host
@@ -54,7 +54,7 @@ function router_status() {
   elif [ $BOSH_ENV = "staging" ]; then
     deployment=${HOME}/workspace/staging-aws/deployments/cf-staging/cf-staging.yml
   elif [ $BOSH_ENV = "lakitu" ]; then
-    deployment=${HOME}/workspace/cloudops-ci/lakitu/cf-lakitu-ci/cf-lakitu-ci.yml
+    deployment=${HOME}/workspace/cloudops-ci/lakitu/deployments/cf-lakitu-ci.yml
   fi
   GREP_USER="data = YAML::load(STDIN.read); puts data['properties']['router']['status']['user']"
   GREP_PASS="data = YAML::load(STDIN.read); puts data['properties']['router']['status']['password']"
