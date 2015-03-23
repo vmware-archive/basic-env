@@ -33,7 +33,7 @@ function bosh_me() {
     director_host=bosh.run.pivotal.io
     deployment=${HOME}/workspace/prod-aws/prod/cf-cfapps-io2/cf-cfapps-io2.yml
   elif [ $BOSH_ENV = "staging" ]; then
-    deployment=${HOME}/workspace/staging-aws/deployments/cf-staging/cf-staging.yml
+    deployment=${HOME}/workspace/staging-aws/deployments/cf-staging.yml
   elif [ $BOSH_ENV = "lakitu" ]; then
     deployment=${HOME}/workspace/cloudops-ci/lakitu/deployments/cf-lakitu-ci.yml
   fi
@@ -52,7 +52,7 @@ function router_status() {
   if [ $BOSH_ENV = "prod" ]; then
     deployment=${HOME}/workspace/prod-aws/prod/cf-cfapps-io2/cf-cfapps-io2.yml
   elif [ $BOSH_ENV = "staging" ]; then
-    deployment=${HOME}/workspace/staging-aws/deployments/cf-staging/cf-staging.yml
+    deployment=${HOME}/workspace/staging-aws/deployments/cf-staging.yml
   elif [ $BOSH_ENV = "lakitu" ]; then
     deployment=${HOME}/workspace/cloudops-ci/lakitu/deployments/cf-lakitu-ci.yml
   fi
