@@ -1,6 +1,6 @@
 #. /usr/local/share/chruby/chruby.sh
 
-[ -e  ~/workspace/basic-env/bin/common ] &&  .  ~/workspace/basic-env/bin/common
+[ -e  ~/basic-env/bin/common ] &&  .  ~/basic-env/bin/common
 
 git config --global user.email "$LOGNAME@pivotal.io"
 [[ $LOGNAME =~ 'thansmann' ]] && git config --global user.name "Tony Hansmann"
