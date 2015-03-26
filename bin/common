@@ -33,9 +33,9 @@ function bosh_me() {
     director_host=bosh.run.pivotal.io
     deployment=${HOME}/workspace/prod-aws/prod/cf-cfapps-io2/cf-cfapps-io2.yml
   elif [ $BOSH_ENV = "staging" ]; then
-    deployment=${HOME}/workspace/staging-aws/staging/cf-staging/cf-staging.yml
+    deployment=${HOME}/workspace/staging-aws/deployments/cf-staging.yml
   elif [ $BOSH_ENV = "lakitu" ]; then
-    deployment=${HOME}/workspace/cloudops-ci/lakitu/cf-lakitu-ci/cf-lakitu-ci.yml
+    deployment=${HOME}/workspace/cloudops-ci/lakitu/deployments/cf-lakitu-ci.yml
   fi
 
   bosh target $director_host
@@ -52,9 +52,9 @@ function router_status() {
   if [ $BOSH_ENV = "prod" ]; then
     deployment=${HOME}/workspace/prod-aws/prod/cf-cfapps-io2/cf-cfapps-io2.yml
   elif [ $BOSH_ENV = "staging" ]; then
-    deployment=${HOME}/workspace/staging-aws/staging/cf-staging/cf-staging.yml
+    deployment=${HOME}/workspace/staging-aws/deployments/cf-staging.yml
   elif [ $BOSH_ENV = "lakitu" ]; then
-    deployment=${HOME}/workspace/cloudops-ci/lakitu/cf-lakitu-ci/cf-lakitu-ci.yml
+    deployment=${HOME}/workspace/cloudops-ci/lakitu/deployments/cf-lakitu-ci.yml
   fi
   GREP_USER="data = YAML::load(STDIN.read); puts data['properties']['router']['status']['user']"
   GREP_PASS="data = YAML::load(STDIN.read); puts data['properties']['router']['status']['password']"
@@ -66,49 +66,6 @@ function router_status() {
   done
 }
 
-##
-# Input: 
-#   package: The name of the installable package
-#   type: The installation source
-#   cmd: The command to execute once the package has been confirmed installed.
-#
-#   Note: the third argument, $cmd, is optional
-function which_p() { 
-  package="$1"; shift
-  type="$1"; shift
-  cmd="$@"
-
-
-  ##
-  # One of these will return 0 if the program is installed...
-  which "$cmd" 1>/dev/null 2>&1
-  errcodea=$?
-  type "$cmd" 1>/dev/null 2>&1
-  errcodeb=$?
-  # Meaning this will multiply to a result of 0
-  result=$(( $errcodea * $errcodeb ))
-
-  # Therefore, if result is zero, then it is already installed
-  if [[ $result -eq 0 ]] 
-  then
-    do_nothing=true
-  else
-    echo "Installing $package"
-    case $type in
-    "gem")
-      gem install "$package"
-      ;;
-    *)
-      echo "Error type: $type not defined"
-      exit 2
-      ;;
-    esac
-  fi
-
-  $cmd
-}
-export -f which_p
-
 function repo_all_the_way() {
   ORGREPO="$1"
   REPO="$(basename "${ORGREPO}")"
@@ -119,26 +76,6 @@ function repo_all_the_way() {
   else
     git submodule update --init --recursive
   fi
-
-  # Run bundler
-  which_p bundler gem bundle install
-
-  # If no ruby is specified, then we want to run bundler on the other installed rubies
-  if [[ -f .ruby-version ]]
-  then
-    donothing=true
-  else
-    OLDRUBY=$(chruby | grep \*| awk '{print $2}')
-    for i in $(chruby | grep -v \*)
-    do
-      echo "Running bundler for ruby: $i"
-      chruby $i
-      which_p bundler gem bundle install
-    done
-    chruby $OLDRUBY
-  fi
-
-
 
   popd
 }
@@ -153,19 +90,16 @@ function all_the_repos() {
 
   for i in \
            cloudfoundry-incubator/diego-release \
-           cloudfoundry/bosh \
-           cloudfoundry/bosh-jumpbox \
            cloudfoundry/cf-release \
-           cloudfoundry/datadog-config \
            pivotal-cf-experimental/basic-env \
-           pivotal-cf/cloudops-ci \
-           pivotal-cf/cloudops-tools \
            pivotal-cf/deployments-aws \
-           pivotal-cf/prod-aws \
            pivotal-cf/prod-keys \
-           pivotal-cf/sprout-wrap \
-           pivotal-cf/staging-aws \
-           pivotal-cf/birdnest-aws
+           pivotal-cloudops/cloudops-ci \
+           pivotal-cloudops/cloudops-tools \
+           pivotal-cloudops/prod-aws \
+           pivotal-cloudops/mysql_restore \
+           pivotal-cloudops/staging-aws \
+           pivotal-cloudops/birdnest-aws
   do
     [[ -d ${i#*/} ]] || GET_ME+="$i "
   done
