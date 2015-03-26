@@ -164,7 +164,8 @@ function all_the_repos() {
            pivotal-cf/prod-aws \
            pivotal-cf/prod-keys \
            pivotal-cf/sprout-wrap \
-           pivotal-cf/staging-aws
+           pivotal-cf/staging-aws \
+           pivotal-cf/birdnest-aws
   do
     [[ -d ${i#*/} ]] || GET_ME+="$i "
   done
