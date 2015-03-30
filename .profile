@@ -1,9 +1,12 @@
 #. /usr/local/share/chruby/chruby.sh
 if [ -e ~/workspace/basic-env/bin/common ]; then
     source ~/workspace/basic-env/bin/common
+    source ~/workspace/basic-env/bin/proxy_bj
 elif [ -e ~/basic-env/bin/common ]; then
     source ~/basic-env/bin/common
+    source ~/basic-env/bin/proxy_bj
 fi
+
 
 git config --global user.email "$LOGNAME@pivotal.io"
 [[ $LOGNAME =~ 'thansmann' ]] && git config --global user.name "Tony Hansmann"
@@ -39,7 +42,9 @@ done
 export jb=jb.run.pivotal.io
 export staging=jb.staging.cf-app.com
 
-
+alias setproxy='export http_proxy; export https_proxy; export ftp_proxy'
+alias unsetproxy='unset http_proxy; unset https_proxy; unset ftp_proxy'
+alias chkproxy='echo $http_proxy; echo $https_proxy; echo $ftp_proxy'
 alias att='cd ~/workspace/BDPaaS'
 alias gti='git'
 alias ll='ls -alrt'
