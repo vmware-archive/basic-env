@@ -91,9 +91,9 @@ function setproxy(){
     elif [ -e ~/basic-env/bin/common ]; then
         source ~/basic-env/bin/proxy_bj
     fi 
-    export http_proxy
-    export https_proxy
-    export ftp_proxy
+    export http_proxy=$proxy
+    export $https_proxy=$proxy
+    export $ftp_proxy=$proxy
 }
 
 function unsetproxy(){
