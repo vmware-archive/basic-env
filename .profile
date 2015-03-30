@@ -1,10 +1,8 @@
 #. /usr/local/share/chruby/chruby.sh
 if [ -e ~/workspace/basic-env/bin/common ]; then
     source ~/workspace/basic-env/bin/common
-    source ~/workspace/basic-env/bin/proxy_bj
 elif [ -e ~/basic-env/bin/common ]; then
     source ~/basic-env/bin/common
-    source ~/basic-env/bin/proxy_bj
 fi
 
 

@@ -110,3 +110,4 @@ function all_the_repos() {
   unset GET_ME
 }
 
+source proxy_bj
