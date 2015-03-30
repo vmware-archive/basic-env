@@ -1,6 +1,6 @@
 #. /usr/local/share/chruby/chruby.sh
 if [ -e ~/workspace/basic-env/bin/common ]; then
-    source ~/workspace/basic-env/bin/common
+    source ~/workspace/basic-env/bin/common 
 elif [ -e ~/basic-env/bin/common ]; then
     source ~/basic-env/bin/common
 fi
@@ -40,7 +40,7 @@ done
 export jb=jb.run.pivotal.io
 export staging=jb.staging.cf-app.com
 
-alias chkproxy='echo $http_proxy; echo $https_proxy; echo $ftp_proxy'
+alias chkproxy='env | grep http_proxy; env | grep https_proxy; env | grep ftp_proxy'
 alias att='cd ~/workspace/BDPaaS'
 alias gti='git'
 alias ll='ls -alrt'
@@ -86,14 +86,15 @@ alias pdd='pushd'
 alias pd='popd'
 
 function setproxy(){
-    if [ -e ~/workspace/basic-env/bin/common ]; then
-        source ~/workspace/basic-env/bin/proxy_bj
-    elif [ -e ~/basic-env/bin/common ]; then
-        source ~/basic-env/bin/proxy_bj
-    fi 
-    export http_proxy=$proxy
-    export $https_proxy=$proxy
-    export $ftp_proxy=$proxy
+   if [ -e ~/workspace/basic-env/bin/proxy_bj ]; then
+       source ~/workspace/basic-env/bin/proxy_bj
+   elif [ -e ~/basic-env/bin/proxy_bj ]; then
+       source ~/basic-env/bin/proxy_bj
+   fi 
+   export http_proxy=$proxy
+   export https_proxy=$http_proxy
+   export ftp_proxy=$http_proxy
+   chkproxy
 }
 
 function unsetproxy(){
