@@ -40,8 +40,6 @@ done
 export jb=jb.run.pivotal.io
 export staging=jb.staging.cf-app.com
 
-alias setproxy='export http_proxy; export https_proxy; export ftp_proxy'
-alias unsetproxy='unset http_proxy; unset https_proxy; unset ftp_proxy'
 alias chkproxy='echo $http_proxy; echo $https_proxy; echo $ftp_proxy'
 alias att='cd ~/workspace/BDPaaS'
 alias gti='git'
@@ -87,6 +85,22 @@ alias gst='git status'
 alias pdd='pushd'
 alias pd='popd'
 
+function setproxy(){
+    if [ -e ~/workspace/basic-env/bin/common ]; then
+        source ~/workspace/basic-env/bin/proxy_bj
+    elif [ -e ~/basic-env/bin/common ]; then
+        source ~/basic-env/bin/proxy_bj
+    fi 
+    export http_proxy
+    export https_proxy
+    export ftp_proxy
+}
+
+function unsetproxy(){
+    unset http_proxy
+    unset https_proxy
+    unset ftp_proxy
+}
 
 function sp(){
     if [ -f $dht/.profile ] ; then
