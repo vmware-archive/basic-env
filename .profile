@@ -928,8 +928,8 @@ function cf_migrations(){
 }
 
 function aws_prod_ro(){
-  if [[ -f ~/workspace/prod-aws/prod/aws_readonly_keys ]] ; then
-    source ~/workspace/prod-aws/prod/aws_readonly_keys
+  if [[ -d ~/workspace/prod-aws ]] ; then
+    source ~/workspace/prod-aws/iam_credentials/aws_readonly_keys
     aws $*
     unset AWS_ACCESS_KEY_ID
     unset AWS_SECRET_ACCESS_KEY
