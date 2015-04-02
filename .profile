@@ -40,7 +40,9 @@ done
 export jb=jb.run.pivotal.io
 export staging=jb.staging.cf-app.com
 
-alias chkproxy='env | grep http_proxy; env | grep https_proxy; env | grep ftp_proxy'
+alias chkproxy='env | grep proxy'
+alias setproxy='function _setproxy(){ echo "setting proxy: $1"; export http_proxy=$1; export https_proxy=$1; export ftp_proxy=$1; };_setproxy'
+alias unsetproxy='function _unsetproxy(){ unset http_proxy; unset https_proxy; unset ftp_proxy; };_unsetproxy'
 alias att='cd ~/workspace/BDPaaS'
 alias gti='git'
 alias ll='ls -alrt'
@@ -84,24 +86,6 @@ alias gppom='git pull --rebase && git push origin master'
 alias gst='git status'
 alias pdd='pushd'
 alias pd='popd'
-
-function setproxy(){
-   if [ -e ~/workspace/basic-env/bin/proxy_bj ]; then
-       source ~/workspace/basic-env/bin/proxy_bj
-   elif [ -e ~/basic-env/bin/proxy_bj ]; then
-       source ~/basic-env/bin/proxy_bj
-   fi 
-   export http_proxy=$proxy
-   export https_proxy=$http_proxy
-   export ftp_proxy=$http_proxy
-   chkproxy
-}
-
-function unsetproxy(){
-    unset http_proxy
-    unset https_proxy
-    unset ftp_proxy
-}
 
 function sp(){
     if [ -f $dht/.profile ] ; then
