@@ -21,8 +21,8 @@ alias les='less '
 alias ll='ls -alrt'
 
 function bosh_me() {
-  if [[ "$#" -ne 1  || ! "$1" =~ prod|staging|lakitu ]]; then
-    echo 'Usage: bosh_me [prod|staging|lakitu]'
+  if [[ "$#" -ne 1  || ! "$1" =~ prod|staging|lakitu|birdnest ]]; then
+    echo 'Usage: bosh_me [prod|staging|lakitu|birdnest]'
     return 1
   fi
   BOSH_ENV=$1
@@ -36,6 +36,8 @@ function bosh_me() {
     deployment=${HOME}/workspace/staging-aws/deployments/cf-staging.yml
   elif [ $BOSH_ENV = "lakitu" ]; then
     deployment=${HOME}/workspace/cloudops-ci/lakitu/deployments/cf-lakitu-ci.yml
+  elif [ $BOSH_ENV = "birdnest" ]; then
+    deployment=${HOME}/workspace/birdnest-aws/deployments/cf-birdnest.yml
   fi
 
   bosh target $director_host
