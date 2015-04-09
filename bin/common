@@ -111,3 +111,27 @@ function all_the_repos() {
   unset GET_ME
 }
 
+function work_on() {
+APP_NAME=$1
+APP_PATH=~/workspace/$APP_NAME
+
+if [ -d ~/workspace/$APP_NAME ] ; then
+  cd $APP_PATH
+  git diff-index --quiet HEAD --  || echo "You have unfinished work in ${APP_NAME}." 
+else
+  git clone git@github.com:pivotal-cloudops/${APP_NAME}.git ${APP_PATH} 2>/dev/null || 
+  git clone git@github.com:pivotal-cf/${APP_NAME}.git ${APP_PATH} 2>/dev/null|| 
+  git clone git@github.com:pivotal-cf-experimental/${APP_NAME}.git ${APP_PATH} 2>/dev/null|| 
+  git clone git@github.com:cloudfoundry/${APP_NAME}.git ${APP_PATH} 2>/dev/null||
+  git clone git@github.com:cloudfoundry-incubator/${APP_NAME}.git ${APP_PATH} 2>/dev/null ||
+  {
+    echo "Repository doesn't exist in any pivotal / cloudfoundry repositories" && return 1
+  }
+
+  repo_all_the_way $APP_NAME
+fi
+  cd $APP_PATH
+  git status
+}
+
+
