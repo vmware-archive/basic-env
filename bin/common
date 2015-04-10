@@ -35,7 +35,7 @@ function bosh_me() {
   elif [ $BOSH_ENV = "staging" ]; then
     deployment=${HOME}/workspace/staging-aws/deployments/cf-staging.yml
   elif [ $BOSH_ENV = "lakitu" ]; then
-    deployment=${HOME}/workspace/cloudops-ci/lakitu/deployments/cf-lakitu-ci.yml
+    deployment=${HOME}/workspace/lakitu-aws/deployments/cf-lakitu-ci.yml
   elif [ $BOSH_ENV = "birdnest" ]; then
     deployment=${HOME}/workspace/birdnest-aws/deployments/cf-birdnest.yml
   fi
