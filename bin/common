@@ -82,7 +82,6 @@ function repo_all_the_way() {
 }
 export -f repo_all_the_way
 
-export -f chruby
 function all_the_repos() {
   ssh -o StrictHostKeyChecking=false -T git@github.com
   mkdir -p ~/workspace
