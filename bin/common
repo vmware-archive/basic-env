@@ -31,7 +31,7 @@ function bosh_me() {
   deployment=$HOME/workspace/deployments-aws/$BOSH_ENV/cf-aws-stub.yml
   if [ $BOSH_ENV = "prod" ]; then
     director_host=bosh.run.pivotal.io
-    deployment=${HOME}/workspace/prod-aws/prod/cf-cfapps-io2/cf-cfapps-io2.yml
+    deployment=${HOME}/workspace/prod-aws/deployments/cf-cfapps-io2.yml
   elif [ $BOSH_ENV = "staging" ]; then
     deployment=${HOME}/workspace/staging-aws/deployments/cf-staging.yml
   elif [ $BOSH_ENV = "lakitu" ]; then
