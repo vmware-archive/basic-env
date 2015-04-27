@@ -40,6 +40,7 @@ done
 export jb=jb.run.pivotal.io
 export staging=jb.staging.cf-app.com
 
+(type  q 2> /dev/null | egrep -q aliased) && unalias q
 alias chkproxy='env | grep proxy'
 alias setproxy='function _setproxy(){ echo "setting proxy: $1"; export http_proxy=$1; export https_proxy=$1; export ftp_proxy=$1; };_setproxy'
 alias unsetproxy='function _unsetproxy(){ unset http_proxy; unset https_proxy; unset ftp_proxy; };_unsetproxy'
@@ -957,5 +958,3 @@ function tmate_install() {
  done
 
 }
-
-unalias q || true
