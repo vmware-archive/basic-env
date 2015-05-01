@@ -52,7 +52,7 @@ function router_status() {
   fi
   BOSH_ENV=$1
   if [ $BOSH_ENV = "prod" ]; then
-    deployment=${HOME}/workspace/prod-aws/prod/cf-cfapps-io2/cf-cfapps-io2.yml
+    deployment=${HOME}/workspace/prod-aws/deployments/cf-cfapps-io2.yml
   elif [ $BOSH_ENV = "staging" ]; then
     deployment=${HOME}/workspace/staging-aws/deployments/cf-staging.yml
   elif [ $BOSH_ENV = "lakitu" ]; then
