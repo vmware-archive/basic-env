@@ -134,4 +134,26 @@ fi
   git status
 }
 
+function cf_login
+{
+  msg="Please set an environment <staging|prod>"
+  environment=$1
+  if [ -z $1 ];
+  then echo $msg
+   fi
+  if [ $environment == 'staging' ]; then
+    api="https://api.staging.cf-app.com"
+  elif [ $environment == "prod" ]; then
+    api="https://api.run.pivotal.io"
+  else
+    echo $msg 
+    return 1
+  fi
 
+  username='admin'
+  password=`grep -- "- admin" ~/workspace/${environment}-aws/deployments/cf.yml | cut -d\| -f2`
+  cf api ${api}
+  cf auth ${username} ${password}
+  cf target -o "cloudops" -s "cloudops"
+
+}
