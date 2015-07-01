@@ -77,6 +77,7 @@ $pn =~ m{\Asqueeze\z}xms && do { squeeze( \@ALL ) ; exit ; } ;
 $pn =~ m{\Alstrip\z}xms && do { lstrip( \@ALL ) ; exit ; } ;
 $pn =~ m{\Arstrip\z}xms && do { rstrip( \@ALL ) ; exit ; } ;
 $pn =~ m{\Afstrip\z}xms&& do { fstrip( \@ALL ) ; exit ; } ;
+$pn =~ m{\Astrip_trailing_space\z}xms&& do { strip_trailing_space( \@ALL ) ; exit ; } ;
 $pn =~ m{\Anl2semi\z}xms && do { nl2semi( \@ALL ) ; exit ; } ;
 $pn =~ m{\Asemi2nl\z}xms && do { semi2nl( \@ALL ) ; exit ; } ;
 $pn =~ m{\Acomma2commanl\z}xms && do { comma2commanl( \@ALL ) ; exit ; } ;
@@ -255,6 +256,15 @@ sub fstrip {
        print;
    }
 
+}
+
+sub strip_trailing_space {
+    $a_ref = shift @_;
+    $color_strip_regex = qr{[\ \t]+\Z};
+    for (@{$a_ref}) {
+      s{$color_strip_regex}{}g;
+      print;
+    }
 }
 
 sub strip_color {

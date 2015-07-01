@@ -1,25 +1,26 @@
 #. /usr/local/share/chruby/chruby.sh
-if [ -e ~/workspace/basic-env/bin/common ]; then
-    source ~/workspace/basic-env/bin/common 
-elif [ -e ~/basic-env/bin/common ]; then
-    source ~/basic-env/bin/common
-fi
+
+export GOPATH=$HOME/.go
+export PATH=$GOPATH/bin:$PATH
 
 
+(git config -l|grep -q alias.lol) || git config --global --add alias.lol "log --graph --decorate --pretty=oneline --abbrev-commit --all"
+(git config -l|grep -q alias.co) || git config --global --add alias.co "checkout"
+(git config -l|grep -q alias.st) || git config --global --add alias.st "status"
+(git config -l|grep -q alias.ci) || git config --global --add alias.ci "duet-commit"
 git config --global user.email "$LOGNAME@pivotal.io"
 [[ $LOGNAME =~ 'thansmann' ]] && git config --global user.name "Tony Hansmann"
 
 # set the git credential cache to avoid typing id/pass a bunch of times
 git config --global credential.helper 'cache --timeout 1200'
 
-complete -C $HOME/.local/lib/aws/bin/aws_completer aws
+complete -C /usr/local/bin/aws_completer aws
 export ALT_HOME=~/Dropbox/home/thansmann
-export EDITOR=vim
-export GOPATH=$HOME/go
+export EDITOR=vi
 echo 'bind status C !git ci' >> ~/.tigrc
 
 #chruby ruby-1.9.3-p448
-#[ -x /usr/libexec/java_home ] && export JAVA_HOME=`/usr/libexec/java_home -v 1.6`
+[ -x /usr/libexec/java_home ] && export JAVA_HOME=`/usr/libexec/java_home -v 1.6`
 export maj=cetas-dev-majestic
 export w="$HOME/workspace"
 export wda="$HOME/workspace/deployments-aws"
@@ -33,7 +34,7 @@ export th_ssh_config="$HOME/Dropbox/home/thansmann/.ssh/config"
 export dht="$HOME/Dropbox/home/thansmann"
 export ssl="/Volumes/Untitled/workspace/ssl_certs"
 
-for path_element in $dht/bin /usr/local/go/bin $HOME/go/bin $EC2_HOME/bin $HOME/bin /usr/local/bin $HOME/workspace/cloudops-tools/bin ; do
+for path_element in $dht/bin /usr/local/go/bin $HOME/go/bin $EC2_HOME/bin $HOME/bin /usr/local/bin ; do
     [[ -d $path_element ]] && PATH+=":${path_element}"
 done
 
@@ -231,8 +232,17 @@ function nats-ads () {
 }
 
 function prod () {
-  prod_key
-  ssh -A thansmann@jb.run.pivotal.io $*
+  if [[ ! -z "$PIVOTAL_USER" ]] ; then
+    prod_key $PIVOTAL_USER
+    ssh -A $PIVOTAL_USER@jb.run.pivotal.io $*
+  else
+    if [[ ! -z "$1" ]] ; then
+      PIVOTAL_USER=$1
+      shift
+    else
+      PIVOTAL_USER=thansmann
+    fi
+  fi
 }
 
 function rprod () {
@@ -634,8 +644,9 @@ function migrate_basic_env() {
   if [[ -d ~/workspace/basic-env ]] ; then
     cd ~/workspace/basic-env && git stash && git pull --rebase && git stash pop
   else
-    cd ~/workspace && git clone git@github.com:thansmann/basic-env.git
+    cd ~/workspace && git clone git@github.com:pivotal-cf-experimental/basic-env.git
   fi
+
   if [[ -d ~/workspace/basic-env ]] ; then
     cp -a $dht/{.profile,.screenrc,.tmux.conf} $dht/home_dot_files/.gitconfig ~/workspace/basic-env
     mkdir -p ~/workspace/basic-env/bin
@@ -687,7 +698,7 @@ function gerrit_key() {
 }
 
 function prod_key() {
-  ssh-keyness $HOME/workspace/prod-aws/keys/id_rsa_thansmann
+  ssh-keyness $HOME/workspace/prod-aws/keys/id_rsa_$PIVOTAL_USER
 }
 
 function prod_bosh_key() {
@@ -723,7 +734,7 @@ function sandbox2() {
 
 function sandbox3() {
     gerrit_key
-    ssh root@12.144.186.140 $*
+    ssh root@12.144.186.59 $*
 
 }
 
@@ -913,8 +924,9 @@ function cf_migrations(){
 }
 
 function aws_prod_ro(){
-  if [[ -d ~/workspace/prod-aws ]] ; then
-    source ~/workspace/prod-aws/iam_credentials/aws_readonly_keys
+  if [[ -d ~/workspace/prod-aws/config ]] ; then
+  local RO_KEYS=$(find ~/workspace/prod-aws -name aws_readonly_keys)
+    source $RO_KEYS
     aws $*
     unset AWS_ACCESS_KEY_ID
     unset AWS_SECRET_ACCESS_KEY
@@ -957,4 +969,32 @@ function tmate_install() {
    "
  done
 
+}
+
+
+function bosh_jobs_list() {
+  for i in $* ; do
+    echo -e "Jobs for $i\n===================="
+    print_between -s '^jobs:' -e '^network' $i --not-last |
+    egrep '^name' |
+    perl -pe 's/_z\d+//xms' |
+    pcut |
+    uniq
+    echo
+  done
+}
+
+function vim_config() {
+  git clone https://github.com/Casecommons/vim-config.git ~/.vim
+  cd ~/.vim
+  git submodule update --init --recursive
+  ln -s ~/.vim/vimrc ~/.vimrc
+  mv init/casebook2.vim after/
+  echo '
+:set nu
+au WinLeave * set nocursorline nocursorcolumn
+au WinEnter * set cursorline cursorcolumn
+set cursorline cursorcolumn
+let &colorcolumn=join(range(81,999),",")
+highlight ColorColumn ctermbg=235 guibg=#2c2d27' >> ~/.vimrc.local
 }
