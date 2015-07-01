@@ -658,9 +658,6 @@ function migrate_basic_env() {
 function new_env() {
   echo "do setup for a new env"
   cd ; mkdir ~/bin ; install  ~/basic-env/bin/* ~/bin
-  cd ; ln -svf ~/basic-env/.profile .profile
-  cd ; ln -svf ~/basic-env/.screenrc .screenrc
-  cd ; ln -svf ~/basic-env/.tmux.conf .tmux.conf
   cd bin ; ./nl2.pl --egg| sort | uniq | xargs -I {} bash -c '{}'
   cd ; ~/bin/install_bosh+tools
 }
