@@ -5,7 +5,7 @@
 (git config -l|grep -q alias.st) || git config --global --add alias.st "status"
 (git config -l|grep -q alias.ci) || git config --global --add alias.ci "duet-commit"
 
-export EDITOR=vi
+export EDITOR=vim
 export TMPDIR=$HOME/tmp
 for path_element in $HOME/go/bin $HOME/bin /usr/local/bin ; do
     PATH+=":${path_element}"
