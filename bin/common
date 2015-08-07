@@ -86,26 +86,29 @@ function all_the_repos() {
   ssh -o StrictHostKeyChecking=false -T git@github.com
   mkdir -p ~/workspace
   pushd ~/workspace
+  local_dir=$(pwd)
   unset GET_ME
 
   for i in \
            cloudfoundry-incubator/diego-release \
+           pivotal-cloudops/birdnest-aws \
            cloudfoundry/cf-release \
            pivotal-cf-experimental/basic-env \
            pivotal-cf/deployments-aws \
            pivotal-cf/prod-keys \
            pivotal-cloudops/cloudops-ci \
-           pivotal-cloudops/cloudops-tools \
            pivotal-cloudops/prod-aws \
            pivotal-cloudops/mysql_restore \
            pivotal-cloudops/staging-aws \
            pivotal-cloudops/lakitu-aws \
-           pivotal-cloudops/birdnest-aws
+           pre-commit/pre-commit-hooks
   do
     [[ -d ${i#*/} ]] || GET_ME+="$i "
   done
   echo $GET_ME
-  [[ ! -z $GET_ME ]] && parallel -j 25 -rt --keep  git clone "git@github.com:{}" ::: $GET_ME
+  git clone git@github.com:pivotal-cloudops/cloudops-tools
+
+  [[ ! -z $GET_ME ]] && parallel -j 25 -rt --keep  git clone --template=$local_dir/cloudops-tools/git_templates "git@github.com:{}" ::: $GET_ME
 
   popd
   unset GET_ME
