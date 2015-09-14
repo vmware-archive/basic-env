@@ -998,3 +998,13 @@ set cursorline cursorcolumn
 let &colorcolumn=join(range(81,999),",")
 highlight ColorColumn ctermbg=235 guibg=#2c2d27' >> ~/.vimrc.local
 }
+
+function prodaws_describe_instances() {
+  [[ -d ~/workspace/prod-aws ]] || git clone git@github.com:pivotal-cf/prod-aws.git ~/workspace/prod-aws
+  curl https://raw.githubusercontent.com/pivotal-cf-experimental/basic-env/master/.profile > ~/cloudops-profile
+  source ~/cloudops-profile
+  # check all the regions
+  for i in $(curl -s http://docs.aws.amazon.com/general/latest/gr/rande.html | egrep -i https | egrep -o '\w{2}-\w+-\d+\b' | sort | uniq) ; do
+      echo "=== region $i ==="; aws_prod_ro --region $i ec2 describe-instances
+    done
+}
