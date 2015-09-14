@@ -1,5 +1,3 @@
-#. /usr/local/share/chruby/chruby.sh
-
 export GOPATH=$HOME/.go
 export PATH=$GOPATH/bin:$PATH
 
@@ -19,7 +17,12 @@ export ALT_HOME=~/Dropbox/home/thansmann
 export EDITOR=vi
 echo 'bind status C !git ci' >> ~/.tigrc
 
-#chruby ruby-1.9.3-p448
+if [ -e ~/workspace/basic-env/bin/common ]; then
+    source ~/workspace/basic-env/bin/common
+elif [ -e ~/basic-env/bin/common ]; then
+    source ~/basic-env/bin/common
+fi
+
 [ -x /usr/libexec/java_home ] && export JAVA_HOME=`/usr/libexec/java_home -v 1.6`
 export maj=cetas-dev-majestic
 export w="$HOME/workspace"
