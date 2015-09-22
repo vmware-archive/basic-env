@@ -105,8 +105,20 @@ function all_the_repos() {
   do
     [[ -d ${i#*/} ]] || GET_ME+="$i "
   done
+  
   echo $GET_ME
-  git clone git@github.com:pivotal-cloudops/cloudops-tools
+
+  if [ -d cloudops-tools ]; then
+  {
+	  pushd cloudops-tools
+          git pull
+	  git checkout master
+	  popd
+  }
+  else {
+	  git clone git@github.com:pivotal-cloudops/cloudops-tools
+  }
+  fi
 
   [[ ! -z $GET_ME ]] && parallel -j 25 -rt --keep  git clone --template=$local_dir/cloudops-tools/git_templates "git@github.com:{}" ::: $GET_ME
 
