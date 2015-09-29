@@ -151,15 +151,17 @@ fi
 
 function cf_login
 {
-  msg="Please set an environment <staging|prod>"
+  msg="Please set an environment <lakitu|staging|prod>"
   environment=$1
   if [ -z $1 ];
   then echo $msg
-   fi
-  if [ $environment == 'staging' ]; then
+  fi
+  if [ $environment == "staging" ]; then
     api="https://api.staging.cf-app.com"
   elif [ $environment == "prod" ]; then
     api="https://api.run.pivotal.io"
+  elif [ $environment == "lakitu" ]; then
+    api="https://api.lakitu.cf-app.com"
   else
     echo $msg 
     return 1
