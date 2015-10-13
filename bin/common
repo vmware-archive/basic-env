@@ -173,11 +173,3 @@ function cf_login
   cf target -o "cloudops" -s "cloudops"
 
 }
-
-function bosh() {
-  if [ "$1" = ssh ]; then 
-    shift; 
-    set ssh --strict_host_key_checking no "$@"; 
-  fi; 
-  command bosh "$@" ;
-}
