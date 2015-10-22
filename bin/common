@@ -106,7 +106,7 @@ function all_the_repos() {
            pivotal-cloudops/mysql_restore \
            pivotal-cloudops/staging-aws \
            pivotal-cloudops/lakitu-aws \
-           pre-commit/pre-commit-hooks \
+           pre-commit/pre-commit-hooks
   do
     [[ -d ${i#*/} ]] || GET_ME+="$i "
   done
