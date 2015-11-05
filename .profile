@@ -17,9 +17,7 @@ export ALT_HOME=~/Dropbox/home/thansmann
 export EDITOR=vi
 echo 'bind status C !git ci' >> ~/.tigrc
 
-if [ -e ~/workspace/basic-env/bin/common ]; then
-    source ~/workspace/basic-env/bin/common
-elif [ -e ~/basic-env/bin/common ]; then
+if [ -e ~/basic-env/bin/common ]; then
     source ~/basic-env/bin/common
 fi
 
