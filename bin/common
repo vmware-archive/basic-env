@@ -21,23 +21,31 @@ alias les='less '
 alias ll='ls -alrt'
 
 function bosh_me() {
-  if [[ "$#" -ne 1  || ! "$1" =~ prod|staging|lakitu|birdnest ]]; then
-    echo 'Usage: bosh_me [prod|staging|lakitu|birdnest]'
+  if [[ -n $1 && ! "$1" = 'micro' ]]; then
+    echo 'Usage: bosh_me [micro]'
     return 1
   fi
-  BOSH_ENV=$1
 
-  director_host=bosh.${BOSH_ENV}.cf-app.com
-  deployment=$HOME/workspace/deployments-aws/$BOSH_ENV/cf-aws-stub.yml
-  if [ $BOSH_ENV = "prod" ]; then
-    director_host=bosh.run.pivotal.io
-    deployment=${HOME}/workspace/prod-aws/deployments/cf-cfapps-io2.yml
-  elif [ $BOSH_ENV = "staging" ]; then
-    deployment=${HOME}/workspace/staging-aws/deployments/cf-staging.yml
-  elif [ $BOSH_ENV = "lakitu" ]; then
-    deployment=${HOME}/workspace/lakitu-aws/deployments/cf-lakitu-ci.yml
-  elif [ $BOSH_ENV = "birdnest" ]; then
-    deployment=${HOME}/workspace/birdnest-aws/deployments/cf-birdnest.yml
+  if [[ $1 == 'micro' ]]; then
+    # microbosh
+    director_host=micro.${BOSH_ENVIRONMENT_NAME}.cf-app.com
+    if [[ $BOSH_ENVIRONMENT_NAME == 'prod' ]]; then
+      director_host=micro.run.pivotal.io
+    fi
+    deployment=$HOME/workspace/${BOSH_ENVIRONMENT_NAME}-aws/deployments/bosh/bosh.yml
+  else
+    #full bosh
+    director_host=bosh.${BOSH_ENVIRONMENT_NAME}.cf-app.com
+    if [ $BOSH_ENVIRONMENT_NAME = "prod" ]; then
+      director_host=bosh.run.pivotal.io
+      deployment=${HOME}/workspace/prod-aws/deployments/cf-cfapps-io2.yml
+    elif [ $BOSH_ENVIRONMENT_NAME = "staging" ]; then
+      deployment=${HOME}/workspace/staging-aws/deployments/cf-staging.yml
+    elif [ $BOSH_ENVIRONMENT_NAME = "lakitu" ]; then
+      deployment=${HOME}/workspace/lakitu-aws/deployments/cf-lakitu-ci.yml
+    elif [ $BOSH_ENVIRONMENT_NAME = "birdnest" ]; then
+      deployment=${HOME}/workspace/birdnest-aws/deployments/cf-birdnest.yml
+    fi
   fi
 
   bosh target $director_host
@@ -46,16 +54,11 @@ function bosh_me() {
 }
 
 function router_status() {
-  if [[ "$#" -ne 1  || ! "$1" =~ prod|staging|lakitu ]]; then
-    echo 'Usage: router_status [prod|staging|lakitu]'
-    return 1
-  fi
-  BOSH_ENV=$1
-  if [ $BOSH_ENV = "prod" ]; then
+  if [ $BOSH_ENVIRONMENT_NAME = "prod" ]; then
     deployment=${HOME}/workspace/prod-aws/deployments/cf-cfapps-io2.yml
-  elif [ $BOSH_ENV = "staging" ]; then
+  elif [ $BOSH_ENVIRONMENT_NAME = "staging" ]; then
     deployment=${HOME}/workspace/staging-aws/deployments/cf-staging.yml
-  elif [ $BOSH_ENV = "lakitu" ]; then
+  elif [ $BOSH_ENVIRONMENT_NAME = "lakitu" ]; then
     deployment=${HOME}/workspace/cloudops-ci/lakitu/deployments/cf-lakitu-ci.yml
   fi
   GREP_USER="data = YAML::load(STDIN.read); puts data['properties']['router']['status']['user']"
