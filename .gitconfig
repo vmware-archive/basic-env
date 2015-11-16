@@ -1,7 +1,4 @@
 # adding to home files git repos
-[user]
-  name = thansmann
-  email = thansmann@rbcon.com
 [core]
 # suggestions from git immersion
 [alias]

@@ -21,30 +21,30 @@ alias les='less '
 alias ll='ls -alrt'
 
 function bosh_me() {
-  if [[ -n $1 && ! "$1" = 'micro' ]]; then
-    echo 'Usage: bosh_me [micro]'
+  if [[ -n $1 && ! "$1" = 'micro' && ! "$1" = 'diego' ]]; then
+    echo 'Usage: bosh_me [micro|diego]'
     return 1
   fi
 
+  repo=$HOME/workspace/${BOSH_ENVIRONMENT_NAME}-aws
   if [[ $1 == 'micro' ]]; then
     # microbosh
     director_host=micro.${BOSH_ENVIRONMENT_NAME}.cf-app.com
     if [[ $BOSH_ENVIRONMENT_NAME == 'prod' ]]; then
       director_host=micro.run.pivotal.io
     fi
-    deployment=$HOME/workspace/${BOSH_ENVIRONMENT_NAME}-aws/deployments/bosh/bosh.yml
+    deployment=${repo}/deployments/bosh/bosh.yml
   else
     #full bosh
     director_host=bosh.${BOSH_ENVIRONMENT_NAME}.cf-app.com
     if [ $BOSH_ENVIRONMENT_NAME = "prod" ]; then
       director_host=bosh.run.pivotal.io
-      deployment=${HOME}/workspace/prod-aws/deployments/cf-cfapps-io2.yml
-    elif [ $BOSH_ENVIRONMENT_NAME = "staging" ]; then
-      deployment=${HOME}/workspace/staging-aws/deployments/cf-staging.yml
-    elif [ $BOSH_ENVIRONMENT_NAME = "lakitu" ]; then
-      deployment=${HOME}/workspace/lakitu-aws/deployments/cf-lakitu-ci.yml
-    elif [ $BOSH_ENVIRONMENT_NAME = "birdnest" ]; then
-      deployment=${HOME}/workspace/birdnest-aws/deployments/cf-birdnest.yml
+    fi
+
+    if [[ $1 == 'diego' ]] ; then
+      deployment=$repo/deployments/diego.yml
+    else
+      deployment=$repo/deployments/cf.yml
     fi
   fi
 
