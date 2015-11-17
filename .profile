@@ -15,6 +15,7 @@ git config --global credential.helper 'cache --timeout 1200'
 complete -C /usr/local/bin/aws_completer aws
 export ALT_HOME=~/Dropbox/home/thansmann
 export EDITOR=vi
+export GIT_EDITOR=vim
 echo 'bind status C !git ci' >> ~/.tigrc
 
 if [ -e ~/basic-env/bin/common ]; then
