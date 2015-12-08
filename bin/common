@@ -167,8 +167,9 @@ function cf_login
 {
   msg="Please set an environment <lakitu|staging|prod|tiantan>"
   environment=$1
-  if [ -z $1 ];
-  then echo $msg
+  if [ -z $1 ]; then
+    echo $msg
+    return 1
   fi
   if [ $environment == "staging" ]; then
     api="https://api.staging.cf-app.com"
@@ -179,7 +180,7 @@ function cf_login
   elif [ $environment == "tiantan" ]; then
     api="https://api.pivotalpws.cn"
   else
-    echo $msg 
+    echo $msg
     return 1
   fi
 
