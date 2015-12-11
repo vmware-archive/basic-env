@@ -191,3 +191,25 @@ function cf_login
   cf target -o "cloudops" -s "cloudops"
 
 }
+
+function pretty_log ()
+{
+  if [[ $# == 0 ]]
+  then
+    while read line; do
+      echo "$line" | jq . 2> /dev/null;
+    done
+  elif [[ $# == 1 ]]
+  then
+    sec=$(date +%s -d "$1")
+    while read line; do
+      echo "$line" | jq "select(.timestamp>$sec)" 2> /dev/null;
+    done
+  else
+    echo "usage:"
+    echo "  pretty_log : pretty all the log from STDOUT "
+    echo "  pretty_log <timespan>: also filter the log as the timespan described from now"
+    echo "    exp: pretty_log '5 minute ago'"
+    echo "         pretty_log '1 hour ago'"
+  fi
+}
