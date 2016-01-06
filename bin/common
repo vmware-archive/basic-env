@@ -57,6 +57,7 @@ function bosh_me() {
   bosh target $director_host --ca-cert ${ca_cert} 
   bosh deployment $deployment
   bosh status
+  cd $repo
 }
 
 function router_status() {
