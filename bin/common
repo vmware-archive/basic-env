@@ -73,8 +73,9 @@ function router_status() {
   user=`cat $deployment | ruby -ryaml -e "$GREP_USER"`
   pass=`cat $deployment | ruby -ryaml -e "$GREP_PASS"`
 
+  bosh_me
   for i in varz routes ; do
-    bosh vms |grep router | cut -f 5 -d '|' | tr -d ' ' | parallel -j 20 -rt --keep "curl -s http://$user:$pass@{}:8080/$i | jq .> ~/tmp/{}.$i.json" ;
+    bosh instances |grep router | cut -f 6 -d '|' | tr -d ' ' | parallel -j 20 -rt --keep "curl -s http://$user:$pass@{}:8080/$i | jq .> ~/tmp/{}.$i.json" ;
   done
 }
 
