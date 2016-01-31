@@ -20,3 +20,11 @@
   status = true
   ui = auto
 
+# check file integrity
+[transfer]
+        fsckobjects = true
+[fetch]
+        fsckobjects = true
+[receive]
+        fsckObjects = true
+
