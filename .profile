@@ -2,16 +2,6 @@ export GOPATH=$HOME/.go
 export PATH=$GOPATH/bin:$PATH
 
 
-(git config -l|grep -q alias.lol) || git config --global --add alias.lol "log --graph --decorate --pretty=oneline --abbrev-commit --all"
-(git config -l|grep -q alias.co) || git config --global --add alias.co "checkout"
-(git config -l|grep -q alias.st) || git config --global --add alias.st "status"
-(git config -l|grep -q alias.ci) || git config --global --add alias.ci "duet-commit"
-git config --global user.email "$LOGNAME@pivotal.io"
-[[ $LOGNAME =~ 'thansmann' ]] && git config --global user.name "Tony Hansmann"
-
-# set the git credential cache to avoid typing id/pass a bunch of times
-git config --global credential.helper 'cache --timeout 1200'
-
 complete -C /usr/local/bin/aws_completer aws
 export ALT_HOME=~/Dropbox/home/thansmann
 export EDITOR=vi
