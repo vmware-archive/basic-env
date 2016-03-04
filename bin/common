@@ -120,7 +120,7 @@ function all_the_repos() {
            pivotal-cloudops/staging-aws \
            pivotal-cloudops/lakitu-aws \
            pivotal-cloudops/pws-china \
-           pre-commit/pre-commit-hooks
+           pivotal-cloudops/mcx-prod-azure
   do
     [[ -d ${i#*/} ]] || GET_ME+="$i "
   done
