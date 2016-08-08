@@ -52,7 +52,7 @@ function bosh_me() {
     fi
   fi
 
-  bosh target $director_host
+  bosh --ca-cert $repo/deployments/bosh/certs/rootCA.pem target $director_host
   bosh deployment $deployment
   bosh status
   cd $repo
