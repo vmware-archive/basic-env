@@ -33,6 +33,7 @@ function bosh_me() {
   fi
   if [[ $1 == 'micro' ]]; then
     # microbosh
+    additional_params=""
     director_host=micro.${BOSH_ENVIRONMENT_NAME}.cf-app.com
     if [[ $BOSH_ENVIRONMENT_NAME == 'prod' ]]; then
       director_host=micro.run.pivotal.io
@@ -40,6 +41,7 @@ function bosh_me() {
     deployment=${repo}/deployments/bosh/bosh.yml
   else
     #full bosh
+    additional_params="--ca-cert $repo/deployments/bosh/certs/rootCA.pem"
     director_host=bosh.${BOSH_ENVIRONMENT_NAME}.cf-app.com
     if [ $BOSH_ENVIRONMENT_NAME = "prod" ]; then
       director_host=bosh.run.pivotal.io
@@ -52,7 +54,7 @@ function bosh_me() {
     fi
   fi
 
-  bosh --ca-cert $repo/deployments/bosh/certs/rootCA.pem target $director_host
+  bosh $additional_params target $director_host
   bosh deployment $deployment
   bosh status
   cd $repo
