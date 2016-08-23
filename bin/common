@@ -25,11 +25,11 @@ function bosh_me() {
     echo 'Usage: bosh_me [micro|diego]'
     return 1
   fi
-  if [ ${BOSH_ENVIRONMENT_NAME} == "tiantan" ]; then 
-     repo=$HOME/workspace/pws-china 
+  if [ ${BOSH_ENVIRONMENT_NAME} == "tiantan" ]; then
+     repo=$HOME/workspace/pws-china
   else
     repo=$HOME/workspace/${BOSH_ENVIRONMENT_NAME}-aws
-  
+
   fi
   if [[ $1 == 'micro' ]]; then
     # microbosh
@@ -126,7 +126,7 @@ function all_the_repos() {
   do
     [[ -d ${i#*/} ]] || GET_ME+="$i "
   done
-  
+
   git clone git@github.com:pivotal-cloudops/cloudops-tools 2>/dev/null
   CLONE_STATUS=$?
   if [[ $CLONE_STATUS != 0 ]]; then
@@ -169,31 +169,42 @@ fi
 
 function cf_login
 {
-  msg="Please set an environment <lakitu|staging|prod|tiantan>"
-  environment=$1
+  # Please note this is tightly coupled with secrets and manifest gen.
+
+  msg="Please set an environment <jeff|prod|tiantan>";
+  environment=$1;
   if [ -z $1 ]; then
-    echo $msg
-    return 1
-  fi
-  if [ $environment == "staging" ]; then
-    api="https://api.staging.cf-app.com"
-  elif [ $environment == "prod" ]; then
-    api="https://api.run.pivotal.io"
-  elif [ $environment == "lakitu" ]; then
-    api="https://api.lakitu.cf-app.com"
-  elif [ $environment == "tiantan" ]; then
-    api="https://api.pivotalpws.cn"
+      echo $msg;
+      return 1;
+  fi;
+
+  if [ $environment == "jeff" ]; then
+      api="https://api.staging.cf-app.com";
   else
-    echo $msg
-    return 1
-  fi
+      if [ $environment == "prod" ]; then
+          api="https://api.run.pivotal.io";
+      else
+          if [ $environment == "tiantan" ]; then
+              api="https://api.pivotalpws.cn";
+          else
+              echo "Unknown Environment Name"
+              echo $msg;
+              return 1;
+          fi;
+      fi;
+  fi;
 
-  username='admin'
-  password=`grep -- "- admin" ~/workspace/${environment}-aws/deployments/cf.yml | cut -d\| -f2`
-  cf api ${api}
-  cf auth ${username} ${password}
+  username='admin';
+  password=`ag  "properties_uaa_scim_users_0_password" $HOME/workspace/secrets-$environment/deployments/ | head -n1 |cut -f 4 -d\"`
+
+  if [ -z $environment ]; then
+      echo "Password not found, do you have the proper secrets directory in workspace?";
+      return 1;
+  fi;
+
+  cf api ${api};
+  cf auth ${username} ${password};
   cf target -o "cloudops" -s "cloudops"
-
 }
 
 function pretty_log ()
