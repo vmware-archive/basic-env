@@ -119,6 +119,7 @@ function all_the_repos() {
            pivotal-cloudops/cloudops-ci \
            pivotal-cloudops/prod-aws \
            pivotal-cloudops/mysql_restore \
+           pivotal-cloudops/staging-aws \
            pivotal-cloudops/jeff-aws \
            pivotal-cloudops/lakitu-aws \
            pivotal-cloudops/pws-china \
