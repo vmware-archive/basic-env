@@ -11,16 +11,11 @@ for path_element in $HOME/go/bin $HOME/bin /usr/local/bin ; do
     PATH+=":${path_element}"
 done
 
-# Typos
-alias bundel='bundle '
-alias gti='git '
-alias le='less '
-alias les='less '
-
 # Useful commands
 alias ll='ls -alrt'
 
 function bosh_me() {
+  test -d $HOME/workspace || all_the_repos
   if [[ -n $1 && ! "$1" = 'micro' && ! "$1" = 'diego' ]]; then
     echo 'Usage: bosh_me [micro|diego]'
     return 1
@@ -117,7 +112,7 @@ function all_the_repos() {
            pivotal-cf/cf-rabbitmq \
            pivotal-cf/prod-keys \
            pivotal-cloudops/cloudops-ci \
-           pivotal-cloudops/prod-aws \
+           pivotal-cf/prod-aws \
            pivotal-cloudops/mysql_restore \
            pivotal-cloudops/staging-aws \
            pivotal-cloudops/jeff-aws \
