@@ -7,13 +7,11 @@ export PATH=$GOPATH/bin:$PATH
 (git config -l|grep -q alias.st) || git config --global --add alias.st "status"
 (git config -l|grep -q alias.ci) || git config --global --add alias.ci "duet-commit"
 git config --global user.email "$LOGNAME@pivotal.io"
-[[ $LOGNAME =~ 'thansmann' ]] && git config --global user.name "Tony Hansmann"
 
 # set the git credential cache to avoid typing id/pass a bunch of times
 git config --global credential.helper 'cache --timeout 1200'
 
 complete -C /usr/local/bin/aws_completer aws
-export ALT_HOME=~/Dropbox/home/thansmann
 export EDITOR=vi
 export GIT_EDITOR=vim
 echo 'bind status C !git ci' >> ~/.tigrc
@@ -24,21 +22,13 @@ fi
 
 [ -x /usr/libexec/java_home ] && export JAVA_HOME=`/usr/libexec/java_home -v 1.6`
 export maj=cetas-dev-majestic
-export w="$HOME/workspace"
-export wda="$HOME/workspace/deployments-aws"
-export wd="$HOME/workspace/dea_ng"
 export wcc="$HOME/workspace/cloud_controller_ng"
 export wcf="$HOME/workspace/cf-release"
 export wb="$HOME/workspace/bosh"
 export wp="$HOME/workspace/prod-aws"
 export wt="$HOME/workspace/tools"
-export th_ssh_config="$HOME/Dropbox/home/thansmann/.ssh/config"
-export dht="$HOME/Dropbox/home/thansmann"
 export ssl="/Volumes/Untitled/workspace/ssl_certs"
 
-for path_element in $dht/bin /usr/local/go/bin $HOME/go/bin $EC2_HOME/bin $HOME/bin /usr/local/bin ; do
-    [[ -d $path_element ]] && PATH+=":${path_element}"
-done
 
 export jb=jb.run.pivotal.io
 export staging=jb.staging.cf-app.com
@@ -59,7 +49,6 @@ alias wb="cd $HOME/workspace/bosh"
 alias wt="cd $HOME/workspace/tools"
 alias wp="cd $HOME/workspace/prod-aws"
 alias wy="cd $HOME/workspace/vcap-yeti"
-alias dht='cd $HOME/Dropbox/home/thansmann'
 alias d='cd $HOME/Dropbox'
 alias b='bundle '
 alias bundel='bundle '
@@ -90,27 +79,6 @@ alias gppom='git pull --rebase && git push origin master'
 alias gst='git status'
 alias pdd='pushd'
 alias pd='popd'
-
-function sp(){
-    if [ -f $dht/.profile ] ; then
-        source $dht/.profile
-    else
-        source ~/.profile
-    fi
-
-}
-
-
-function vp(){
-    if [ -f $dht/.profile ] ; then
-        vi $dht/.profile
-    else
-        vi ~/.profile
-    fi
-
-}
-
-
 
 function be() {
   if [ "$1" = "green" ]; then
@@ -155,27 +123,6 @@ function db () {
   pwd
 }
 
-function dbh () {
-  cd ~/Dropbox/home/thansmann
-  pwd
-}
-
-function tssh () {
-  ssh -F ${th_ssh_config} $*
-}
-
-function tscp () {
-  scp -F ${th_ssh_config} $*
-}
-
-function vsc () {
-  vim ${th_ssh_config}
-}
-
-function diary (){
-  vim $dht/diary
-}
-
 function bosh_all () {
   parallel -j5 --keep "bosh -n --color {}" ::: status deployments stemcells releases
 }
@@ -196,30 +143,10 @@ function bdm () {
   bosh download manifest $*
 }
 
-function seed_etc_profile (){
-  sudo ' echo "function sp () { source $dht/.profile ; }" >> /etc/profile'
-}
-
-function th_ssh_key () {
-  chmod 400 $HOME/Dropbox/home/thansmann/.ssh/gerrit_id_rsa
-  ssh-add $HOME/Dropbox/home/thansmann/.ssh/gerrit_id_rsa
-}
-
-alias tkey='th_ssh_key'
-
-function gh () {
-  echo git clone ssh://git@github.com/cloudfoundry/cf-release.git
-}
 
 function tabasco () {
   bosh_me bosh.tabasco.cf-app.com $*
   NATS_USER_PASS=$(ruby -ryaml -e 'y = YAML.load_file("#{ENV["HOME"]}/workspace/deployments-aws/tabasco/cf-aws-stub.yml"); puts "#{y["properties"]["nats"]["user"]}:#{y["properties"]["nats"]["password"]}"')
-}
-
-function a1 () {
-  ssh -A thansmann@jb.a1.cf-app.com $* 
-  #bosh_me bosh.a1.cf-app.com
-  #NATS_USER_PASS=$( ruby -ryaml -e 'y = YAML.load_file("#{ENV["HOME"]}/workspace/deployments-aws/a1/cf-shared-secrets.yml"); puts "#{y["properties"]["nats"]["user"]}:#{y["properties"]["nats"]["password"]}"' )
 }
 
 function nats-ads () {
@@ -233,26 +160,6 @@ function nats-ads () {
   )
 }
 
-function prod () {
-  if [[ ! -z "$PIVOTAL_USER" ]] ; then
-    prod_key $PIVOTAL_USER
-    ssh -A $PIVOTAL_USER@jb.run.pivotal.io $*
-  else
-    if [[ ! -z "$1" ]] ; then
-      PIVOTAL_USER=$1
-      shift
-    else
-      PIVOTAL_USER=thansmann
-    fi
-  fi
-}
-
-function rprod () {
-  ssh-add -D
-  chmod 400 $HOME/workspace/prod-aws/config/id_rsa_jb
-  ssh-add -t 4900 $HOME/workspace/prod-aws/config/id_rsa_jb
-  ssh -A ubuntu@jb.run.pivotal.io $*
-}
 
 function rprod () {
   ssh-add -D
@@ -288,19 +195,9 @@ function pass () {
 
 }
 
-function D () {
-    date +%F
-}
 
 function space2slash_s_+() {
  perl -pe 's{\s+}{\\s+}g; print "\n"'
-}
-
-
-bbb(){
-  set -x
-  cat $HOME/Dropbox/home/thansmann/home_dot_files/bosh_job_paste | pbcopy
-  set +x
 }
 
 function job_env {
@@ -343,26 +240,6 @@ function gfd () {
  goddammit
 }
 
-function dea_apps_prod (){
-  check_ssh_keys
-  cf tunnel-nats --director bosh.run.pivotal.io  --gateway thansmann@jb.run.pivotal.io --command dea-apps
-}
-
-function cf_tools (){
-  if [[ ! -z "$*" ]] ; then
-    check_ssh_keys
-    cf tunnel-nats bosh.run.pivotal.io --gateway thansmann@jb.run.pivotal.io  $*
-  else
-    echo "$0 [dea-apps || dea-ads ]"
-  fi
-}
-
-function gonarc() {
-  cd ~/workspace/narc
-  export GOPATH=$PWD
-  cd src/github.com/vito/narc
-}
-
 function goto {
   cd ~/workspace/*$1* && \
     export GOPATH=$PWD && \
@@ -394,24 +271,6 @@ function fcd {
   cd $(dirname $1)
 }
 
-function jb() {
-  ssh -A thansmann@jb.run.pivotal.io
-
-}
-
-function staging() {
-  prod_key
-  if [[ -z $1 ]] ; then
-	ID=thansmann
-else
-	ID=$1
-fi
-  ssh -L 25555:bosh.staging.cf-app.com:25555 -A $ID@jb.staging.cf-app.com
-}
-
-function staging2() {
-  ssh -L 25555:bosh.staging.cf-app.com:25555 -A thansmann@jb-z2.staging.cf-app.com
-}
 
 function checklist_reset() {
   perl  -pe 's{\[x\]}{[ ]}g' $1
@@ -446,9 +305,6 @@ function whats_in_the_deploy() {
        -u https://github.com/cloudfoundry/cf-release > ~/Desktop/whats-in-the-deploy.html
 }
 
-function ttmux() {
-  tmux -f $dht/.tmux.conf
-}
 
 function myip() {
   wget -qO- http://ipecho.net/plain ; echo
@@ -487,20 +343,6 @@ function ssl_decode_csr() {
   set +x
 
 }
-
-#alias bb='GEMFILE=~/workspace/bosh/Gemfile bundle exec bosh '
-
-pushenv () {
-    if [[ -d $dht ]] ; then
-      pushd $dht
-    else
-      pushd ~
-    fi
-    scp -r .screenrc .profile env bin $1:;
-    ssh $1 "chmod 755 .profile; ln -sf .profile .bash_profile";
-    popd
-}
-
 
 function att_spiff(){
  bash -x $HOME/workspace/att_spiffable_template/bin/att_spiff
@@ -641,22 +483,6 @@ function ez () {
 
  }
 
-
-function migrate_basic_env() {
-  if [[ -d ~/workspace/basic-env ]] ; then
-    cd ~/workspace/basic-env && git stash && git pull --rebase && git stash pop
-  else
-    cd ~/workspace && git clone git@github.com:pivotal-cf-experimental/basic-env.git
-  fi
-
-  if [[ -d ~/workspace/basic-env ]] ; then
-    cp -a $dht/{.profile,.screenrc,.tmux.conf} $dht/home_dot_files/.gitconfig ~/workspace/basic-env
-    mkdir -p ~/workspace/basic-env/bin
-    cp -a $dht/bin/{gen_sudo_shell_command.bash,aws_NAT_boxes_for_all_regions.bash,push_env,install_bosh+tools,check_ssh_keys,jsh,summarize_jsh,ll,llp,lll,pcut,++,nl2.pl,print_between,tree_perms.pl,kibme,next_file_named,show_swapping_procs,llll} ~/workspace/basic-env/bin
-    git commit -a --cleanup=strip -v
-  fi
-}
-
 function new_env() {
   echo "do setup for a new env"
   cd ; mkdir ~/bin ; install  ~/basic-env/bin/* ~/bin
@@ -690,10 +516,6 @@ function ssh-keyness() {
   else
     echo "WARN: could not find key [$1], doing nothing"
   fi
-}
-
-function gerrit_key() {
-  ssh-keyness $HOME/Dropbox/home/thansmann/.ssh/gerrit_id_rsa
 }
 
 function prod_key() {
@@ -799,15 +621,6 @@ PATH+=":$(pwd)"
 echo "After: $PATH"
 }
 
-function ttt(){
- set -x
- (
-  echo "git clone https://github.com/thansmann/basic-env.git ~/basic-env ; . ~/basic-env/.profile"
-  echo new_env
-  echo set_prod_bosh_env
-  )| pbcopy
- set +x
-}
 
 function set_prod_bosh_env(){
   mkdir -p ~/jb_env
