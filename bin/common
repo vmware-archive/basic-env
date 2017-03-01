@@ -13,6 +13,7 @@ done
 
 # Useful commands
 alias ll='ls -alrt'
+alias bosh='/usr/local/bin/gobosh'
 
 function bosh_me() {
   test -d $HOME/workspace || all_the_repos
