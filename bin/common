@@ -50,9 +50,9 @@ function bosh_me() {
     fi
   fi
 
-  bosh $additional_params target $director_host
-  bosh deployment $deployment
-  bosh status
+  bosh alias-env $BOSH_ENVIRONMENT_NAME -e $director_host
+  bosh -e $BOSH_ENVIRONMENT_NAME deployment -d $deployment
+  bosh -e $BOSH_ENVIRONMENT_NAME env
   cd $repo
 }
 
