@@ -98,6 +98,8 @@ bosh_me() {
     fi
   fi
 
+  source $repo/goboshvars.sh
+
   /usr/local/bin/gobosh $additional_params alias-env $BOSH_ENVIRONMENT_NAME -e $director_host
   /usr/local/bin/gobosh -e $BOSH_ENVIRONMENT_NAME deployment -d $BOSH_DEPLOYMENT
   /usr/local/bin/gobosh -e $BOSH_ENVIRONMENT_NAME env
