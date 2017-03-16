@@ -278,3 +278,5 @@ function pretty_log ()
     echo "         pretty_log '1 hour ago'"
   fi
 }
+
+eval "$(direnv hook bash)"
