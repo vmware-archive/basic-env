@@ -142,7 +142,7 @@ function repo_all_the_way() {
 export -f repo_all_the_way
 
 function all_the_repos() {
-  ssh -o StrictHostKeyChecking=false -T git@github.com
+  ssh -T git@github.com
   SSH_STATUS=$?
   if [[ $SSH_STATUS != 1 ]]; then
     echo "Please check if you have loaded your github ssh key"
