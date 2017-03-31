@@ -83,6 +83,9 @@ bosh_me() {
 
   additional_params="--ca-cert $repo/deployments/bosh/certs/rootCA.pem"
   director_host=bosh.${BOSH_ENVIRONMENT_NAME}.cf-app.com
+
+  source $repo/goboshvars.sh
+
   if [ $BOSH_ENVIRONMENT_NAME = "prod" ]; then
     director_host=bosh.run.pivotal.io
     if [[ $1 == 'diego' ]] ; then
@@ -97,8 +100,6 @@ bosh_me() {
       export BOSH_DEPLOYMENT=cf-staging
     fi
   fi
-
-  source $repo/goboshvars.sh
 
   /usr/local/bin/gobosh $additional_params alias-env $BOSH_ENVIRONMENT_NAME -e $director_host
   /usr/local/bin/gobosh -e $BOSH_ENVIRONMENT_NAME deployment -d $BOSH_DEPLOYMENT
