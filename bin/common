@@ -71,38 +71,13 @@ bosh_me() {
     return 1
   fi
 
-  if [[ -n $1 && ! "$1" = 'diego' ]]; then
-    echo 'Usage: bosh_me [diego]'
-    return 1
-  fi
-  if [ ${BOSH_ENVIRONMENT_NAME} == "tiantan" ]; then
-     repo=$HOME/workspace/pws-china
-  else
-    repo=$HOME/workspace/${BOSH_ENVIRONMENT_NAME}-aws
-  fi
-
+  repo=$HOME/workspace/${BOSH_ENVIRONMENT_NAME}-aws
   additional_params="--ca-cert $repo/deployments/bosh/certs/rootCA.pem"
-  director_host=bosh.${BOSH_ENVIRONMENT_NAME}.cf-app.com
 
   source $repo/goboshvars.sh
-
-  if [ $BOSH_ENVIRONMENT_NAME = "prod" ]; then
-    director_host=bosh.run.pivotal.io
-    if [[ $1 == 'diego' ]] ; then
-      export BOSH_DEPLOYMENT=cf-cfapps-io2-diego
-    else
-      export BOSH_DEPLOYMENT=cf-cfapps-io2
-    fi
-  elif [[ $BOSH_ENVIRONMENT_NAME == 'staging' ]]; then
-    if [[ $1 == 'diego' ]] ; then
-      export BOSH_DEPLOYMENT=cf-staging-diego
-    else
-      export BOSH_DEPLOYMENT=cf-staging
-    fi
-  fi
+  director_host=bosh.run.pivotal.io
 
   /usr/local/bin/gobosh $additional_params alias-env $BOSH_ENVIRONMENT_NAME -e $director_host
-  /usr/local/bin/gobosh -e $BOSH_ENVIRONMENT_NAME deployment -d $BOSH_DEPLOYMENT
   /usr/local/bin/gobosh -e $BOSH_ENVIRONMENT_NAME env
   cd $repo
 }
