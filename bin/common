@@ -42,25 +42,9 @@ function all_the_repos() {
   unset GET_ME
 
   for i in \
-           cloudfoundry-incubator/diego-release \
-           pivotal-cloudops/birdnest-aws \
-           cloudfoundry/cf-release \
-           pivotal-cf-experimental/basic-env \
-           pivotal-cf/deployments-aws \
-           pivotal-cf-experimental/service-metrics-release \
-           pivotal-cf/cf-rabbitmq \
            pivotal-cf/prod-keys \
-           pivotal-cloudops/cloudops-ci \
            pivotal-cf/prod-aws \
-           pivotal-cloudops/mysql_restore \
-           pivotal-cloudops/staging-aws \
-           pivotal-cloudops/jeff-aws \
-           pivotal-cloudops/lakitu-aws \
-           pivotal-cloudops/pws-china \
-           pivotal-cloudops/mcx-prod-azure \
            pivotal-cloudops/secrets-prod \
-           pivotal-cloudops/secrets-jeff \
-           pivotal-cloudops/secrets-lakitu
   do
     [[ -d ${i#*/} ]] || GET_ME+="$i "
   done
