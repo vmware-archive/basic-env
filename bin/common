@@ -44,7 +44,7 @@ function all_the_repos() {
   for i in \
            pivotal-cf/prod-keys \
            pivotal-cf/prod-aws \
-           pivotal-cloudops/secrets-prod \
+           pivotal-cloudops/secrets-prod
   do
     [[ -d ${i#*/} ]] || GET_ME+="$i "
   done
