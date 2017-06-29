@@ -66,6 +66,22 @@ function all_the_repos() {
   unset GET_ME
 }
 
+function meta_me() {
+  unset BOSH_CLIENT BOSH_CLIENT_SECRET BOSH_ENVIRONMENT
+  CYAN='\033[0;36m'
+  COLOR_RESET='\033[0m'
+  echo -e "Unsetting BOSH_CLIENT BOSH_CLIENT_SECRET BOSH_ENVIRONMENT"
+  bosh -e meta logout
+  bosh -e meta login
+  echo -e "${CYAN}Switch back to the prod director with 'prod_me'${COLOR_RESET}"
+}
+
+function prod_me() {
+  pushd $HOME
+  direnv reload
+  popd
+}
+
 function work_on() {
 APP_NAME=$1
 APP_PATH=~/workspace/$APP_NAME
