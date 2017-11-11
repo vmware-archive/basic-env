@@ -70,42 +70,14 @@ fi
 
 function cf_login
 {
-  # Please note this is tightly coupled with secrets and manifest gen.
-
-  msg="Please set an environment <jeff|prod|tiantan>";
-  environment=$1;
-  if [ -z $1 ]; then
-      echo $msg;
-      return 1;
-  fi;
-
-  if [ $environment == "jeff" ]; then
-      api="https://api.staging.cf-app.com";
-  else
-      if [ $environment == "prod" ]; then
-          api="https://api.run.pivotal.io";
-      else
-          if [ $environment == "tiantan" ]; then
-              api="https://api.pivotalpws.cn";
-          else
-              echo "Unknown Environment Name"
-              echo $msg;
-              return 1;
-          fi;
-      fi;
-  fi;
-
-  username='admin';
-  password=`ag  "properties_uaa_scim_users_0_password" $HOME/workspace/secrets-$environment/deployments/ | head -n1 |cut -f 4 -d\"`
-
-  if [ -z $environment ]; then
-      echo "Password not found, do you have the proper secrets directory in workspace?";
-      return 1;
-  fi;
-
-  cf api ${api};
-  cf auth ${username} ${password};
-  cf target -o "cloudops" -s "cloudops"
+  admin_password=$(credhub get -n /vpc-bosh-run-pivotal-io/cf-cfapps-io2/cf_admin_password | awk '/^value/{print $2}')
+  if [ -z "$admin_password" ]; then
+      echo "can not get password from Credhub. Is it down?"
+      return 1
+  fi
+  cf api api.run.pivotal.io
+  cf auth admin $admin_password
+  cf target -o cloudops -s cloudops
 }
 
 function pretty_log ()
