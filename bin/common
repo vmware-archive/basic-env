@@ -13,7 +13,6 @@ done
 
 # Useful commands
 alias ll='ls -alrt'
-alias bosh='/usr/local/bin/gobosh'
 
 function repo_all_the_way() {
   ORGREPO="$1"
