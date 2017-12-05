@@ -79,6 +79,17 @@ function cf_login
   cf target -o cloudops -s cloudops
 }
 
+function uaa_login
+{
+  admin_secret=$(credhub get -n /vpc-bosh-run-pivotal-io/cf-cfapps-io2/uaa_admin_client_secret | awk '/^value/{print $2}')
+  if [ -z "$admin_secret" ]; then
+      echo "can not get password from Credhub. Is it down?"
+      return 1
+  fi
+  uaac target uaa.run.pivotal.io
+  uaac token client get admin -s $admin_secret
+}
+
 function pretty_log ()
 {
   if [[ $# == 0 ]]
