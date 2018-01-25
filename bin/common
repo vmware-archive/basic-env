@@ -6,7 +6,9 @@
 (git config -l|grep -q alias.ci) || git config --global --add alias.ci "duet-commit"
 
 export EDITOR=vim
+mkdir -p $HOME/tmp
 export TMPDIR=$HOME/tmp
+
 for path_element in $HOME/go/bin $HOME/bin /usr/local/bin ; do
     PATH+=":${path_element}"
 done
