@@ -53,7 +53,7 @@ fi
   git status
 }
 
-function cf_login
+function cf_pws_login
 {
   admin_password=$(credhub get -n /vpc-bosh-run-pivotal-io/cf-cfapps-io2/cf_admin_password | awk '/^value/{print $2}')
   if [ -z "$admin_password" ]; then
@@ -65,7 +65,7 @@ function cf_login
   cf target -o cloudops -s cloudops
 }
 
-function uaa_login
+function uaac_pws_login
 {
   admin_secret=$(credhub get -n /vpc-bosh-run-pivotal-io/cf-cfapps-io2/uaa_admin_client_secret | awk '/^value/{print $2}')
   if [ -z "$admin_secret" ]; then
